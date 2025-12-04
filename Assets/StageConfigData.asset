@@ -20,10 +20,13 @@ MonoBehaviour:
     gemRequests:
     - gemId: 1
       count: 2
+      orientation: 1
     - gemId: 2
       count: 1
+      orientation: 1
     - gemId: 5
       count: 1
+      orientation: 1
   - stageId: 2
     boardWidth: 5
     boardHeight: 5
@@ -31,10 +34,13 @@ MonoBehaviour:
     gemRequests:
     - gemId: 1
       count: 2
+      orientation: 1
     - gemId: 2
       count: 2
+      orientation: 1
     - gemId: 6
       count: 1
+      orientation: 1
   - stageId: 3
     boardWidth: 6
     boardHeight: 6
@@ -42,12 +48,16 @@ MonoBehaviour:
     gemRequests:
     - gemId: 1
       count: 1
+      orientation: 1
     - gemId: 2
       count: 2
+      orientation: 1
     - gemId: 5
       count: 1
+      orientation: 1
     - gemId: 6
       count: 2
+      orientation: 1
   - stageId: 4
     boardWidth: 7
     boardHeight: 7
@@ -55,14 +65,19 @@ MonoBehaviour:
     gemRequests:
     - gemId: 1
       count: 1
+      orientation: 1
     - gemId: 3
       count: 2
+      orientation: 1
     - gemId: 5
       count: 2
+      orientation: 1
     - gemId: 6
       count: 1
+      orientation: 1
     - gemId: 8
       count: 1
+      orientation: 1
   - stageId: 5
     boardWidth: 8
     boardHeight: 8
@@ -70,14 +85,19 @@ MonoBehaviour:
     gemRequests:
     - gemId: 1
       count: 2
+      orientation: 1
     - gemId: 2
       count: 2
+      orientation: 1
     - gemId: 4
       count: 2
+      orientation: 1
     - gemId: 7
       count: 1
+      orientation: 1
     - gemId: 9
       count: 1
+      orientation: 1
   rewardConfigs:
   - stageId: 1
     rewardType: 0

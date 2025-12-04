@@ -16,6 +16,7 @@ public class StageManager : MonoBehaviour
     private int currentStageId = 1;
     private StageConfig currentStageConfig;
     private List<Gem> stageGems;
+    private Dictionary<Gem, GemOrientation> gemOrientations; // Lưu orientation cho mỗi gem
     private bool isStageCompleted = false;
     
     public event Action<int> OnStageChanged;
@@ -61,8 +62,15 @@ public class StageManager : MonoBehaviour
         // Create gems for this stage
         CreateStageGems();
         
-        // Place gems randomly
-        boardManager.PlaceGemsRandomly(stageGems, gemConfigData);
+        // Place gems randomly với orientation được quy định
+        bool gemsPlaced = boardManager.PlaceGemsRandomly(stageGems, gemConfigData, gemOrientations);
+        
+        if (!gemsPlaced)
+        {
+            Debug.LogError($"Failed to place all gems for stage {stageId}! Stage may be invalid.");
+            // Có thể reload stage hoặc show error message
+            return;
+        }
         
         // Place dynamites
         boardManager.PlaceDynamites(currentStageConfig.dynamiteCount);
@@ -74,6 +82,7 @@ public class StageManager : MonoBehaviour
     private void CreateStageGems()
     {
         stageGems = new List<Gem>();
+        gemOrientations = new Dictionary<Gem, GemOrientation>();
         
         foreach (var request in currentStageConfig.gemRequests)
         {
@@ -101,6 +110,8 @@ public class StageManager : MonoBehaviour
                 );
                 
                 stageGems.Add(gem);
+                // Lưu orientation cho gem này
+                gemOrientations[gem] = request.orientation;
             }
         }
     }

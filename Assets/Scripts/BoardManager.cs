@@ -112,44 +112,284 @@ public class BoardManager : MonoBehaviour
         board[x, y] = cell;
     }
     
-    public void PlaceGemsRandomly(List<Gem> gems, GemConfigData gemConfigData)
+    public bool PlaceGemsRandomly(List<Gem> gems, GemConfigData gemConfigData, Dictionary<Gem, GemOrientation> gemOrientations = null)
     {
         hiddenGems.Clear();
         
-        // Sắp xếp gems theo kích thước (lớn trước) để dễ đặt hơn
-        List<Gem> sortedGems = new List<Gem>(gems);
-        sortedGems.Sort((a, b) => 
+        // Validation: Kiểm tra board có đủ chỗ không
+        if (!ValidateBoardCapacity(gems, gemConfigData, gemOrientations))
         {
-            int sizeA = a.Width * a.Height;
-            int sizeB = b.Width * b.Height;
-            return sizeB.CompareTo(sizeA); // Lớn trước
-        });
+            Debug.LogError("Board is too small to fit all gems!");
+            return false;
+        }
         
-        foreach (var gem in sortedGems)
+        // Retry mechanism: Thử nhiều lần với các cách sắp xếp khác nhau
+        int maxRetries = 50;
+        for (int retry = 0; retry < maxRetries; retry++)
         {
-            if (!PlaceGemRandomly(gem, gemConfigData))
+            // Clear board trước mỗi lần thử
+            ClearAllGems();
+            
+            // Sắp xếp gems theo kích thước (lớn trước) để dễ đặt hơn
+            List<Gem> sortedGems = new List<Gem>(gems);
+            
+            // Xáo trộn một chút để có nhiều cách sắp xếp khác nhau
+            if (retry > 0)
             {
-                Debug.LogError($"Failed to place gem {gem.GemId} - board may be too small!");
-                // Thử lại với cách tiếp cận khác: tìm tất cả vị trí có thể và chọn ngẫu nhiên
-                if (!PlaceGemWithAllPositions(gem, gemConfigData))
+                // Xáo trộn ngẫu nhiên nhưng vẫn ưu tiên gem lớn
+                sortedGems.Sort((a, b) => 
                 {
-                    Debug.LogError($"CRITICAL: Could not place gem {gem.GemId} even with exhaustive search!");
+                    int sizeA = a.Width * a.Height;
+                    int sizeB = b.Width * b.Height;
+                    int sizeCompare = sizeB.CompareTo(sizeA);
+                    // Nếu cùng kích thước, xáo trộn ngẫu nhiên
+                    if (sizeCompare == 0)
+                        return Random.Range(-1, 2);
+                    return sizeCompare;
+                });
+            }
+            else
+            {
+                sortedGems.Sort((a, b) => 
+                {
+                    int sizeA = a.Width * a.Height;
+                    int sizeB = b.Width * b.Height;
+                    return sizeB.CompareTo(sizeA); // Lớn trước
+                });
+            }
+            
+            // Thử đặt tất cả gem với backtracking
+            if (PlaceGemsWithBacktracking(sortedGems, gemConfigData, gemOrientations))
+            {
+                Debug.Log($"Successfully placed all {gems.Count} gems after {retry + 1} attempt(s)");
+                return true;
+            }
+        }
+        
+        Debug.LogError($"CRITICAL: Failed to place all gems after {maxRetries} attempts!");
+        return false;
+    }
+    
+    private bool ValidateBoardCapacity(List<Gem> gems, GemConfigData gemConfigData, Dictionary<Gem, GemOrientation> gemOrientations)
+    {
+        int totalBoardArea = boardWidth * boardHeight;
+        int totalGemArea = 0;
+        
+        foreach (var gem in gems)
+        {
+            var config = gemConfigData.GetGemConfig(gem.GemId);
+            if (config == null) continue;
+            
+            GemOrientation orientation = GemOrientation.Horizontal;
+            if (gemOrientations != null && gemOrientations.ContainsKey(gem))
+            {
+                orientation = gemOrientations[gem];
+            }
+            
+            // Tính diện tích gem sau khi xoay theo orientation
+            int gemArea;
+            if (config.width == config.height)
+            {
+                gemArea = config.width * config.height;
+            }
+            else if (orientation == GemOrientation.Horizontal)
+            {
+                // Nằm ngang: width > height
+                gemArea = (config.width > config.height) ? 
+                    config.width * config.height : 
+                    config.height * config.width;
+            }
+            else // Vertical
+            {
+                // Nằm dọc: height > width
+                gemArea = (config.height > config.width) ? 
+                    config.width * config.height : 
+                    config.height * config.width;
+            }
+            
+            totalGemArea += gemArea;
+        }
+        
+        // Board phải có diện tích lớn hơn tổng diện tích gem (cần thêm buffer cho dynamite và spacing)
+        if (totalGemArea > totalBoardArea * 0.9f) // Cho phép 90% board được dùng cho gem
+        {
+            Debug.LogWarning($"Board capacity warning: Total gem area ({totalGemArea}) vs Board area ({totalBoardArea})");
+            return false;
+        }
+        
+        return true;
+    }
+    
+    private void ClearAllGems()
+    {
+        // Xóa tất cả gem khỏi board
+        for (int x = 0; x < boardWidth; x++)
+        {
+            for (int y = 0; y < boardHeight; y++)
+            {
+                if (board[x, y].Gem != null)
+                {
+                    board[x, y].SetGem(null);
                 }
             }
         }
+        hiddenGems.Clear();
     }
     
-    private bool PlaceGemRandomly(Gem gem, GemConfigData gemConfigData)
+    private bool PlaceGemsWithBacktracking(List<Gem> gems, GemConfigData gemConfigData, Dictionary<Gem, GemOrientation> gemOrientations)
+    {
+        return PlaceGemsRecursive(gems, 0, gemConfigData, gemOrientations);
+    }
+    
+    private bool PlaceGemsRecursive(List<Gem> gems, int index, GemConfigData gemConfigData, Dictionary<Gem, GemOrientation> gemOrientations)
+    {
+        // Nếu đã đặt hết tất cả gem
+        if (index >= gems.Count)
+        {
+            return true;
+        }
+        
+        Gem gem = gems[index];
+        GemOrientation orientation = GemOrientation.Horizontal;
+        if (gemOrientations != null && gemOrientations.ContainsKey(gem))
+        {
+            orientation = gemOrientations[gem];
+        }
+        
+        // Lấy tất cả vị trí có thể đặt gem này
+        List<PlacementOption> validPlacements = GetAllValidPlacements(gem, gemConfigData, orientation);
+        
+        // Xáo trộn để có tính ngẫu nhiên
+        for (int i = 0; i < validPlacements.Count; i++)
+        {
+            int randomIndex = Random.Range(i, validPlacements.Count);
+            PlacementOption temp = validPlacements[i];
+            validPlacements[i] = validPlacements[randomIndex];
+            validPlacements[randomIndex] = temp;
+        }
+        
+        // Thử từng vị trí
+        foreach (var placement in validPlacements)
+        {
+            var config = gemConfigData.GetGemConfig(gem.GemId);
+            if (config == null) continue;
+            
+            // Đặt gem tại vị trí này
+            PlaceGemAt(gem, placement.x, placement.y, config, placement.actualWidth, placement.actualHeight, placement.isRotated);
+            hiddenGems.Add(gem);
+            
+            // Đệ quy đặt gem tiếp theo
+            if (PlaceGemsRecursive(gems, index + 1, gemConfigData, gemOrientations))
+            {
+                return true; // Thành công!
+            }
+            
+            // Nếu không thành công, backtrack: xóa gem này
+            RemoveGem(gem);
+            hiddenGems.Remove(gem);
+        }
+        
+        return false; // Không tìm được cách đặt
+    }
+    
+    private void RemoveGem(Gem gem)
+    {
+        // Xóa gem khỏi tất cả cells
+        if (gem.Cells != null)
+        {
+            foreach (var cell in gem.Cells)
+            {
+                if (cell != null)
+                {
+                    cell.SetGem(null);
+                    // Reset cell về trạng thái ban đầu (stone)
+                    cell.SetStoneLayers(Random.Range(0, 2) == 0 ? 1 : 2);
+                }
+            }
+            // Clear danh sách cells của gem
+            gem.Cells.Clear();
+        }
+    }
+    
+    private List<PlacementOption> GetAllValidPlacements(Gem gem, GemConfigData gemConfigData, GemOrientation orientation)
+    {
+        List<PlacementOption> validPlacements = new List<PlacementOption>();
+        var config = gemConfigData.GetGemConfig(gem.GemId);
+        if (config == null) return validPlacements;
+        
+        // Xác định các hướng xoay dựa trên orientation được quy định
+        bool canRotate = config.width != config.height;
+        bool[] rotationOptions;
+        
+        if (!canRotate)
+        {
+            rotationOptions = new bool[] { false };
+        }
+        else if (orientation == GemOrientation.Horizontal)
+        {
+            rotationOptions = new bool[] { config.width > config.height ? false : true };
+        }
+        else // Vertical
+        {
+            rotationOptions = new bool[] { config.height > config.width ? false : true };
+        }
+        
+        foreach (bool isRotated in rotationOptions)
+        {
+            int actualWidth = isRotated ? config.height : config.width;
+            int actualHeight = isRotated ? config.width : config.height;
+            
+            for (int x = 0; x <= boardWidth - actualWidth; x++)
+            {
+                for (int y = 0; y <= boardHeight - actualHeight; y++)
+                {
+                    if (CanPlaceGem(x, y, actualWidth, actualHeight))
+                    {
+                        validPlacements.Add(new PlacementOption
+                        {
+                            x = x,
+                            y = y,
+                            isRotated = isRotated,
+                            actualWidth = actualWidth,
+                            actualHeight = actualHeight
+                        });
+                    }
+                }
+            }
+        }
+        
+        return validPlacements;
+    }
+    
+    private bool PlaceGemRandomly(Gem gem, GemConfigData gemConfigData, GemOrientation orientation = GemOrientation.Horizontal)
     {
         var config = gemConfigData.GetGemConfig(gem.GemId);
         if (config == null) return false;
         
-        // Thu thập tất cả vị trí có thể đặt gem (cả hai hướng nếu có thể xoay)
+        // Thu thập tất cả vị trí có thể đặt gem
         List<PlacementOption> validPlacements = new List<PlacementOption>();
         
-        // Thử cả hai hướng nếu gem có thể xoay
+        // Xác định các hướng xoay dựa trên orientation được quy định
         bool canRotate = config.width != config.height;
-        bool[] rotationOptions = canRotate ? new bool[] { false, true } : new bool[] { false };
+        bool[] rotationOptions;
+        
+        if (!canRotate)
+        {
+            // Gem vuông, không thể xoay
+            rotationOptions = new bool[] { false };
+        }
+        else if (orientation == GemOrientation.Horizontal)
+        {
+            // Nằm ngang: width > height sau khi xoay
+            // Nếu width gốc > height gốc thì không xoay, ngược lại thì xoay
+            rotationOptions = new bool[] { config.width > config.height ? false : true };
+        }
+        else // Vertical
+        {
+            // Nằm dọc: height > width sau khi xoay
+            // Nếu height gốc > width gốc thì không xoay, ngược lại thì xoay
+            rotationOptions = new bool[] { config.height > config.width ? false : true };
+        }
         
         foreach (bool isRotated in rotationOptions)
         {
@@ -188,7 +428,7 @@ public class BoardManager : MonoBehaviour
         return false;
     }
     
-    private bool PlaceGemWithAllPositions(Gem gem, GemConfigData gemConfigData)
+    private bool PlaceGemWithAllPositions(Gem gem, GemConfigData gemConfigData, GemOrientation orientation = GemOrientation.Horizontal)
     {
         // Fallback: thử lại với nhiều lần hơn và cách tiếp cận khác
         var config = gemConfigData.GetGemConfig(gem.GemId);
@@ -196,8 +436,23 @@ public class BoardManager : MonoBehaviour
         
         // Tạo danh sách tất cả vị trí có thể theo thứ tự ngẫu nhiên
         List<PlacementOption> allOptions = new List<PlacementOption>();
+        
+        // Xác định các hướng xoay dựa trên orientation được quy định
         bool canRotate = config.width != config.height;
-        bool[] rotationOptions = canRotate ? new bool[] { false, true } : new bool[] { false };
+        bool[] rotationOptions;
+        
+        if (!canRotate)
+        {
+            rotationOptions = new bool[] { false };
+        }
+        else if (orientation == GemOrientation.Horizontal)
+        {
+            rotationOptions = new bool[] { config.width > config.height ? false : true };
+        }
+        else // Vertical
+        {
+            rotationOptions = new bool[] { config.height > config.width ? false : true };
+        }
         
         foreach (bool isRotated in rotationOptions)
         {

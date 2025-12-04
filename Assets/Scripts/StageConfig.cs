@@ -2,16 +2,31 @@ using System;
 using System.Collections.Generic;
 using UnityEngine;
 
+public enum GemOrientation
+{
+    Horizontal,  // Nằm ngang (width > height sau khi xoay)
+    Vertical      // Nằm dọc (height > width sau khi xoay)
+}
+
 [Serializable]
 public class StageGemRequest
 {
     public int gemId;
     public int count;
+    public GemOrientation orientation = GemOrientation.Horizontal; // Hướng của gem (mặc định Horizontal)
     
     public StageGemRequest(int id, int cnt)
     {
         gemId = id;
         count = cnt;
+        orientation = GemOrientation.Horizontal;
+    }
+    
+    public StageGemRequest(int id, int cnt, GemOrientation orient)
+    {
+        gemId = id;
+        count = cnt;
+        orientation = orient;
     }
 }
 

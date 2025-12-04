@@ -2625,6 +2625,8 @@ MonoBehaviour:
   cellUIPrefab: {fileID: 7002200733183342844, guid: 74750c61abf70e043a6df491c25a1a8e, type: 3}
   boardParentUI: {fileID: 356771383}
   cellSize: 100
+  boardBackgroundSprite: {fileID: 0}
+  boardBackgroundColor: {r: 0.5, g: 0.5, b: 0.5, a: 1}
 --- !u!4 &707080842
 Transform:
   m_ObjectHideFlags: 0
@@ -3987,7 +3989,6 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   stageManager: {fileID: 1832646824}
   boardManager: {fileID: 707080841}
-  pickaxeManager: {fileID: 1808648591}
 --- !u!4 &1545385871
 Transform:
   m_ObjectHideFlags: 0
