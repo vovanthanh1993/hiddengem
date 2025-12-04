@@ -62,15 +62,9 @@ public class StageManager : MonoBehaviour
         // Create gems for this stage
         CreateStageGems();
         
-        // Place gems randomly với orientation được quy định
-        bool gemsPlaced = boardManager.PlaceGemsRandomly(stageGems, gemConfigData, gemOrientations);
-        
-        if (!gemsPlaced)
-        {
-            Debug.LogError($"Failed to place all gems for stage {stageId}! Stage may be invalid.");
-            // Có thể reload stage hoặc show error message
-            return;
-        }
+        // Không đặt gems lên board ngay từ đầu, chỉ lưu vào pool
+        // Gems sẽ được spawn khi người chơi đào trúng
+        boardManager.InitializeGemPool(stageGems, gemConfigData, gemOrientations);
         
         // Place dynamites
         boardManager.PlaceDynamites(currentStageConfig.dynamiteCount);
@@ -121,7 +115,8 @@ public class StageManager : MonoBehaviour
         if (isStageCompleted) return false; // Đã hoàn thành rồi, không check lại
         
         var collectedGems = boardManager.GetCollectedGems();
-        return collectedGems.Count >= currentStageConfig.GetTotalGemCount();
+        int totalGemsNeeded = boardManager.GetTotalGemsNeeded();
+        return collectedGems.Count >= totalGemsNeeded && totalGemsNeeded > 0;
     }
     
     public void CompleteStage()

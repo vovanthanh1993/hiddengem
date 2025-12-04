@@ -9,6 +9,7 @@ public class CellUI : MonoBehaviour, IPointerClickHandler
     [SerializeField] private Gem gem; // Gem chứa trong cell này (nếu có)
     [SerializeField] private bool isDynamite;
     [SerializeField] private bool isRevealed;
+    [SerializeField] private bool isExcludedFromGemSpawn; // Đánh dấu cell này đã được đào nhưng không spawn gem
     
     [Header("UI Sprites")]
     [SerializeField] private Sprite stone1LayerSprite;
@@ -35,6 +36,7 @@ public class CellUI : MonoBehaviour, IPointerClickHandler
     public Gem Gem => gem;
     public bool IsDynamite => isDynamite;
     public bool IsRevealed => isRevealed;
+    public bool IsExcludedFromGemSpawn => isExcludedFromGemSpawn;
     public int BoardX => boardX;
     public int BoardY => boardY;
     
@@ -59,6 +61,7 @@ public class CellUI : MonoBehaviour, IPointerClickHandler
         gem = null;
         isDynamite = false;
         isRevealed = false;
+        isExcludedFromGemSpawn = false;
         UpdateVisual();
     }
     
@@ -75,7 +78,18 @@ public class CellUI : MonoBehaviour, IPointerClickHandler
         if (gem != null)
         {
             cellType = CellType.Gem;
+            isExcludedFromGemSpawn = false; // Khi có gem, không còn bị exclude nữa
         }
+    }
+    
+    public void MarkAsExcludedFromGemSpawn()
+    {
+        isExcludedFromGemSpawn = true;
+    }
+    
+    public void ResetExcludedFromGemSpawn()
+    {
+        isExcludedFromGemSpawn = false;
     }
     
     public void SetGemInfo(Gem gemData, int cellX, int cellY, int width, int height)

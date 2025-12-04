@@ -93,8 +93,7 @@ MonoBehaviour:
   gem: {fileID: 0}
   isDynamite: 0
   isRevealed: 0
-  stone1LayerSprite: {fileID: 21300000, guid: 7c51fa8c40119844ca26740434a3f21f, type: 3}
-  stone2LayersSprite: {fileID: 21300000, guid: 8c16c598c1021064e97dc02a1028c04e, type: 3}
+  stone1LayerSprite: {fileID: 21300000, guid: 7b3234b215d4fce48a59d6a357964c21, type: 3}
+  stone2LayersSprite: {fileID: 21300000, guid: 90a360c3330f1874eb07c650b3f5cf60, type: 3}
   dynamiteSprite: {fileID: 21300000, guid: e8f874713ba3ef243ad650ba6489c018, type: 3}
-  emptyCellSprite: {fileID: 21300000, guid: c4d20930be0b20748abf650e044c7c67, type: 3}
   gemImage: {fileID: 0}
