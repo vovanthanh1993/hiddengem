@@ -17,27 +17,27 @@ MonoBehaviour:
     width: 1
     height: 2
     gemColor: {r: 1, g: 0, b: 0, a: 1}
-    gemSprite: {fileID: 21300000, guid: 5a73e399fc2b6624b8b35aa773a653d2, type: 3}
+    gemSprite: {fileID: 21300000, guid: b74d2296c0110264c95b82beed8e9094, type: 3}
   - gemId: 2
     width: 1
     height: 3
     gemColor: {r: 0, g: 0, b: 1, a: 1}
-    gemSprite: {fileID: 21300000, guid: 45e61b79594b4cf438801ac6c29d44bf, type: 3}
+    gemSprite: {fileID: 21300000, guid: b07b062172945384193a1e3a2423f394, type: 3}
   - gemId: 3
     width: 1
     height: 4
     gemColor: {r: 0, g: 1, b: 0, a: 1}
-    gemSprite: {fileID: 21300000, guid: 9ddb2b295c929f34185f095c704dca64, type: 3}
+    gemSprite: {fileID: 21300000, guid: ba80c75ab98102346bbf2eb2707c81d7, type: 3}
   - gemId: 4
     width: 1
     height: 5
     gemColor: {r: 1, g: 0.92156863, b: 0.015686275, a: 1}
-    gemSprite: {fileID: 21300000, guid: b74d2296c0110264c95b82beed8e9094, type: 3}
+    gemSprite: {fileID: 21300000, guid: 7e6f33d7f8cd48940bf2b2448b167b30, type: 3}
   - gemId: 5
     width: 2
     height: 2
     gemColor: {r: 1, g: 0, b: 1, a: 1}
-    gemSprite: {fileID: 21300000, guid: ef6a231d82bddb7478a054f7fa6ce0ed, type: 3}
+    gemSprite: {fileID: 21300000, guid: 5a73e399fc2b6624b8b35aa773a653d2, type: 3}
   - gemId: 6
     width: 2
     height: 3
@@ -52,9 +52,9 @@ MonoBehaviour:
     width: 3
     height: 3
     gemColor: {r: 1, g: 1, b: 1, a: 1}
-    gemSprite: {fileID: 21300000, guid: be34cdab3fcd9294a9043095e65e7934, type: 3}
+    gemSprite: {fileID: 21300000, guid: 9ddb2b295c929f34185f095c704dca64, type: 3}
   - gemId: 9
     width: 4
     height: 4
     gemColor: {r: 0.5, g: 0, b: 0.5, a: 1}
-    gemSprite: {fileID: 21300000, guid: a6180f2e2f2878c4c8e22955cf2d085b, type: 3}
+    gemSprite: {fileID: 21300000, guid: 0072c0856c95dc343bfac2021569947b, type: 3}
