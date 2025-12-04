@@ -2625,8 +2625,11 @@ MonoBehaviour:
   cellUIPrefab: {fileID: 7002200733183342844, guid: 74750c61abf70e043a6df491c25a1a8e, type: 3}
   boardParentUI: {fileID: 356771383}
   cellSize: 100
-  boardBackgroundSprite: {fileID: 0}
+  boardBackgroundSprite: {fileID: 21300000, guid: aa1a41f80d32c05429198e149ecae3af, type: 3}
   boardBackgroundColor: {r: 0.5, g: 0.5, b: 0.5, a: 1}
+  explosionParticlePrefab: {fileID: 6566205677301999529, guid: 8e6d7089ebfb77041b24572cd0bb984d, type: 3}
+  explosionParticleDuration: 1.5
+  digCooldown: 0.3
 --- !u!4 &707080842
 Transform:
   m_ObjectHideFlags: 0
@@ -3020,7 +3023,7 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0, y: 1}
   m_AnchorMax: {x: 0, y: 1}
-  m_AnchoredPosition: {x: 60.495, y: -73.649506}
+  m_AnchoredPosition: {x: 60.494995, y: -73.649506}
   m_SizeDelta: {x: 120.99, y: 0}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &1132480936
@@ -4252,8 +4255,8 @@ Canvas:
   m_GameObject: {fileID: 1751543805}
   m_Enabled: 1
   serializedVersion: 3
-  m_RenderMode: 0
-  m_Camera: {fileID: 0}
+  m_RenderMode: 1
+  m_Camera: {fileID: 330585545}
   m_PlaneDistance: 100
   m_PixelPerfect: 0
   m_ReceivesEvents: 1

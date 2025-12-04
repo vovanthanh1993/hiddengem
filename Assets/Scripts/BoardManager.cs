@@ -1,3 +1,4 @@
+using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
@@ -13,7 +14,15 @@ public class BoardManager : MonoBehaviour
     [SerializeField] private Sprite boardBackgroundSprite; // Sprite cho background của board (optional)
     [SerializeField] private Color boardBackgroundColor = new Color(0.5f, 0.5f, 0.5f, 1f); // Màu background (mặc định xám)
     
+    [Header("Explosion Effects")]
+    [SerializeField] private ParticleSystem explosionParticlePrefab; // Prefab cho explosion particle system
+    [SerializeField] private float explosionParticleDuration = 1.5f; // Thời gian hiệu ứng nổ
+    
+    [Header("Digging Settings")]
+    [SerializeField] private float digCooldown = 0.3f; // Khoảng cách thời gian giữa mỗi lần đào (giây)
+    
     private CellUI[,] board;
+    private float lastDigTime = 0f; // Thời gian lần đào cuối cùng
     private int boardWidth;
     private int boardHeight;
     private List<Gem> hiddenGems;
@@ -651,6 +660,13 @@ public class BoardManager : MonoBehaviour
     {
         if (x < 0 || x >= boardWidth || y < 0 || y >= boardHeight)
             return false;
+        
+        // Kiểm tra cooldown giữa các lần đào
+        float currentTime = Time.time;
+        if (currentTime - lastDigTime < digCooldown)
+        {
+            return false; // Chưa đủ thời gian, không cho đào
+        }
             
         CellUI cell = board[x, y];
         if (cell.IsRevealed)
@@ -663,6 +679,9 @@ public class BoardManager : MonoBehaviour
             PickaxeManager.Instance.ShowAddPickaxePopup();
             return false;
         }
+        
+        // Cập nhật thời gian đào cuối cùng
+        lastDigTime = currentTime;
         
         PickaxeManager.Instance.UsePickaxe(pickaxesNeeded);
         cell.Dig();
@@ -1560,6 +1579,9 @@ public class BoardManager : MonoBehaviour
     
     private void ExplodeDynamite(int x, int y)
     {
+        // Spawn explosion particle effect
+        SpawnExplosionEffect(x, y);
+        
         // Đào và reveal các cell trong vùng nổ 3x3 với tỉ lệ 30% hiện gem
         for (int i = -1; i <= 1; i++)
         {
@@ -1584,6 +1606,141 @@ public class BoardManager : MonoBehaviour
                 }
             }
         }
+    }
+    
+    // Spawn explosion particle effect tại vị trí dynamite
+    private void SpawnExplosionEffect(int x, int y)
+    {
+        if (explosionParticlePrefab == null || boardParentUI == null)
+        {
+            Debug.LogWarning("Explosion particle prefab or board parent UI is null!");
+            return;
+        }
+        
+        // Tính toán vị trí của cell trong Canvas
+        CellUI cell = board[x, y];
+        if (cell == null)
+        {
+            Debug.LogWarning($"Cell at ({x}, {y}) is null!");
+            return;
+        }
+        
+        RectTransform cellRect = cell.GetComponent<RectTransform>();
+        if (cellRect == null)
+        {
+            Debug.LogWarning($"Cell RectTransform is null!");
+            return;
+        }
+        
+        // Tạo particle system instance (KHÔNG đặt trong Canvas, đặt trong scene root)
+        ParticleSystem explosion = Instantiate(explosionParticlePrefab);
+        
+        // Với Screen Space Overlay Canvas, Particle System cần được đặt trong World Space
+        // Convert UI position sang world position
+        Canvas canvas = boardParentUI.GetComponentInParent<Canvas>();
+        Vector3 worldPosition = Vector3.zero;
+        
+        // Lấy camera chính (dùng chung cho cả function)
+        Camera mainCamera = Camera.main ?? FindObjectOfType<Camera>();
+        
+        if (canvas != null)
+        {
+            if (canvas.renderMode == RenderMode.ScreenSpaceOverlay)
+            {
+                // Screen Space Overlay: convert screen position sang world position
+                if (mainCamera != null)
+                {
+                    // Convert UI world position sang screen point, rồi sang world position ở một distance nhất định
+                    Vector3 screenPoint = RectTransformUtility.WorldToScreenPoint(null, cellRect.position);
+                    // Đặt particle ở một khoảng cách trước camera (ví dụ: 10 units)
+                    worldPosition = mainCamera.ScreenToWorldPoint(new Vector3(screenPoint.x, screenPoint.y, mainCamera.nearClipPlane + 5f));
+                }
+                else
+                {
+                    // Fallback: dùng position trực tiếp
+                    worldPosition = cellRect.position;
+                }
+            }
+            else if (canvas.renderMode == RenderMode.ScreenSpaceCamera)
+            {
+                // Screen Space Camera: convert sang world position của camera
+                if (canvas.worldCamera != null)
+                {
+                    RectTransformUtility.ScreenPointToWorldPointInRectangle(
+                        cellRect,
+                        RectTransformUtility.WorldToScreenPoint(canvas.worldCamera, cellRect.position),
+                        canvas.worldCamera,
+                        out worldPosition);
+                }
+                else
+                {
+                    worldPosition = cellRect.position;
+                }
+            }
+            else
+            {
+                // World Space: dùng position trực tiếp
+                worldPosition = cellRect.position;
+            }
+        }
+        else
+        {
+            // Fallback: dùng position trực tiếp
+            worldPosition = cellRect.position;
+        }
+        
+        // Đặt particle system tại vị trí đã tính toán
+        explosion.transform.position = worldPosition;
+        
+        // Đảm bảo Particle System render đúng cho game 2D
+        var renderer = explosion.GetComponent<ParticleSystemRenderer>();
+        if (renderer != null)
+        {
+            // Render mode phù hợp với 2D
+            renderer.renderMode = ParticleSystemRenderMode.Billboard;
+            
+            // Đảm bảo sorting layer và order để hiển thị trên UI
+            renderer.sortingLayerName = "Default";
+            renderer.sortingOrder = 100; // Render trên UI
+            
+            // Đảm bảo renderer được enable
+            renderer.enabled = true;
+        }
+        
+        // Đảm bảo Particle System được đặt ở đúng depth với camera 2D
+        if (mainCamera != null)
+        {
+            // Với orthographic camera (2D), đặt particle ở cùng Z với camera hoặc gần hơn một chút
+            Vector3 pos = worldPosition;
+            if (mainCamera.orthographic)
+            {
+                // Orthographic camera: đặt ở cùng Z với camera hoặc gần hơn một chút
+                pos.z = mainCamera.transform.position.z + 1f;
+            }
+            else
+            {
+                // Perspective camera: đặt ở một khoảng cách hợp lý
+                pos.z = mainCamera.nearClipPlane + 5f;
+            }
+            explosion.transform.position = pos;
+            worldPosition = pos; // Update cho debug log
+        }
+        
+        // Play particle system
+        explosion.Play();
+        
+        // Debug: Hiển thị thông tin vị trí
+        Debug.Log($"Explosion Particle spawned at cell ({x}, {y}):\n" +
+                  $"  - Cell UI position: {cellRect.position}\n" +
+                  $"  - Cell anchored position: {cellRect.anchoredPosition}\n" +
+                  $"  - World position (Particle): {worldPosition}\n" +
+                  $"  - Canvas render mode: {(canvas != null ? canvas.renderMode.ToString() : "null")}\n" +
+                  $"  - Camera: {(mainCamera != null ? mainCamera.name : "null")}\n" +
+                  $"  - Camera type: {(mainCamera != null ? (mainCamera.orthographic ? "Orthographic" : "Perspective") : "null")}\n" +
+                  $"  - Particle Z position: {explosion.transform.position.z}");
+        
+        // Tự động destroy sau khi effect kết thúc
+        Destroy(explosion.gameObject, explosionParticleDuration);
     }
     
     private int CountRevealedGems()
