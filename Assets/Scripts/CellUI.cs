@@ -79,6 +79,8 @@ public class CellUI : MonoBehaviour, IPointerClickHandler
         {
             cellType = CellType.Gem;
             isExcludedFromGemSpawn = false; // Khi có gem, không còn bị exclude nữa
+            // Cập nhật visual để hiển thị gem nếu cell đã được reveal
+            UpdateVisual();
         }
     }
     
@@ -109,6 +111,9 @@ public class CellUI : MonoBehaviour, IPointerClickHandler
         
         // Tạo hoặc cập nhật gemImage để hiển thị phần gem của cell này
         SetupGemImage();
+        
+        // Cập nhật visual để hiển thị gem nếu cell đã được reveal
+        UpdateVisual();
     }
     
     private void SetupGemImage()
@@ -158,7 +163,15 @@ public class CellUI : MonoBehaviour, IPointerClickHandler
         }
         
         // Ẩn gem image ban đầu, chỉ hiện khi cell được reveal
-        gemImage.gameObject.SetActive(false);
+        // Nhưng nếu cell đã được reveal thì hiển thị ngay
+        if (isRevealed)
+        {
+            gemImage.gameObject.SetActive(true);
+        }
+        else
+        {
+            gemImage.gameObject.SetActive(false);
+        }
     }
     
     private void CreateGemMaterial()

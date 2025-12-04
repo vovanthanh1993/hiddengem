@@ -75,6 +75,18 @@ public class StageManager : MonoBehaviour
     
     private void CreateStageGems()
     {
+        // Xóa các gem cũ từ stage trước (nếu có)
+        if (stageGems != null)
+        {
+            foreach (var oldGem in stageGems)
+            {
+                if (oldGem != null && oldGem.gameObject != null)
+                {
+                    Destroy(oldGem.gameObject);
+                }
+            }
+        }
+        
         stageGems = new List<Gem>();
         gemOrientations = new Dictionary<Gem, GemOrientation>();
         

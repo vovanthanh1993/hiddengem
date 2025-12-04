@@ -91,6 +91,16 @@ public class BoardManager : MonoBehaviour
                 CreateCell(x, y);
             }
         }
+        
+        // Set stone layers ngẫu nhiên cho tất cả các cell (1 hoặc 2 layers)
+        for (int y = 0; y < height; y++)
+        {
+            for (int x = 0; x < width; x++)
+            {
+                int layers = Random.Range(0, 2) == 0 ? 1 : 2;
+                board[x, y].SetStoneLayers(layers);
+            }
+        }
     }
     
     private void CreateCell(int x, int y)
@@ -118,6 +128,32 @@ public class BoardManager : MonoBehaviour
     
     public void InitializeGemPool(List<Gem> gems, GemConfigData configData, Dictionary<Gem, GemOrientation> orientations = null)
     {
+        // Xóa các gem cũ khỏi board và destroy các GameObject gem cũ
+        ClearAllGems();
+        
+        // Destroy các gem GameObject cũ từ unplacedGems và hiddenGems
+        if (unplacedGems != null)
+        {
+            foreach (var oldGem in unplacedGems)
+            {
+                if (oldGem != null && oldGem.gameObject != null)
+                {
+                    Destroy(oldGem.gameObject);
+                }
+            }
+        }
+        
+        if (hiddenGems != null)
+        {
+            foreach (var oldGem in hiddenGems)
+            {
+                if (oldGem != null && oldGem.gameObject != null)
+                {
+                    Destroy(oldGem.gameObject);
+                }
+            }
+        }
+        
         // Lưu danh sách gems chưa được đặt vào pool (không đặt lên board ngay)
         unplacedGems = new List<Gem>(gems);
         gemConfigData = configData;
@@ -579,9 +615,7 @@ public class BoardManager : MonoBehaviour
                 // Nhưng cần truyền width và height gốc để sprite hiển thị đúng
                 cell.SetGemInfo(gem, gemCellX, gemCellY, config.width, config.height, actualWidth, actualHeight, isRotated);
                 
-                // Random stone layers (1 or 2)
-                int layers = Random.Range(0, 2) == 0 ? 1 : 2;
-                cell.SetStoneLayers(layers);
+                // Không thay đổi stone layers của cell khi spawn gem - giữ nguyên stone layers ban đầu
             }
         }
     }
@@ -730,7 +764,7 @@ public class BoardManager : MonoBehaviour
             shuffledGems[randomIndex] = temp;
         }
         
-        // Thử spawn từng gem trong pool để tìm gem có thể đặt ở cell này
+        // Thử spawn từng gem ngẫu nhiên
         foreach (Gem gemToSpawn in shuffledGems)
         {
             // Lấy orientation của gem này
@@ -843,7 +877,7 @@ public class BoardManager : MonoBehaviour
                         {
                             // Reset exclude flag của tất cả cells trong placement
                             for (int x = 0; x < placement.actualWidth; x++)
-                            {
+        {
                                 for (int y = 0; y < placement.actualHeight; y++)
                                 {
                                     board[placement.x + x, placement.y + y].ResetExcludedFromGemSpawn();
@@ -955,7 +989,7 @@ public class BoardManager : MonoBehaviour
             shuffledGems[randomIndex] = temp;
         }
         
-        // Thử từng gem trong pool (đã được xáo trộn ngẫu nhiên)
+        // Thử từng gem ngẫu nhiên
         foreach (Gem gemToSpawn in shuffledGems)
         {
             // Lấy orientation của gem này
@@ -1118,7 +1152,7 @@ public class BoardManager : MonoBehaviour
         {
             Debug.LogWarning("Cannot spawn gem - remaining gems may not fit on board. Will retry later.");
             return false;
-        }
+            }
         
         // Chọn một gem ngẫu nhiên từ pool
         int randomIndex = Random.Range(0, unplacedGems.Count);
@@ -1260,12 +1294,70 @@ public class BoardManager : MonoBehaviour
     }
     
     // Kiểm tra xem có thể đặt tất cả gems lên test board không (sử dụng backtracking)
+    // Tối ưu: Early exit, giảm allocation, giới hạn số lần thử, xáo trộn vị trí ngẫu nhiên
+    private const int MAX_BACKTRACK_ATTEMPTS = 10000; // Giới hạn số lần thử để tránh quá lâu
+    
     private bool CanPlaceAllGemsOnTestBoard(List<Gem> gems, bool[,] testBoard)
     {
         if (gems.Count == 0)
             return true;
         
-        Gem gem = gems[0];
+        // Early exit: Kiểm tra diện tích trước (tối ưu quan trọng nhất)
+        int totalGemArea = 0;
+        int availableArea = 0;
+        
+        // Đếm diện tích trống trên test board một lần
+        for (int x = 0; x < boardWidth; x++)
+        {
+            for (int y = 0; y < boardHeight; y++)
+            {
+                if (testBoard[x, y]) availableArea++;
+            }
+        }
+        
+        // Tính tổng diện tích gems
+        foreach (var g in gems)
+        {
+            var cfg = gemConfigData?.GetGemConfig(g.GemId);
+            if (cfg == null) continue;
+            GemOrientation ori = gemOrientations != null && gemOrientations.ContainsKey(g) 
+                ? gemOrientations[g] : GemOrientation.Horizontal;
+            int area = GetGemArea(cfg, ori);
+            totalGemArea += area;
+        }
+        
+        // Nếu diện tích gem lớn hơn diện tích trống, không thể đặt
+        if (totalGemArea > availableArea)
+            return false;
+        
+        // Không sắp xếp để giữ tính ngẫu nhiên, chỉ dùng đệ quy tối ưu với giới hạn
+        int attemptCount = 0;
+        return CanPlaceAllGemsOnTestBoardRecursive(gems, 0, testBoard, ref attemptCount);
+    }
+    
+    // Helper để tính diện tích gem
+    private int GetGemArea(GemConfig config, GemOrientation orientation)
+    {
+        if (config.width == config.height)
+            return config.width * config.height;
+        
+        if (orientation == GemOrientation.Horizontal)
+            return (config.width > config.height) ? config.width * config.height : config.height * config.width;
+        else
+            return (config.height > config.width) ? config.width * config.height : config.height * config.width;
+    }
+    
+    // Hàm backtracking đệ quy đã tối ưu với giới hạn số lần thử và xáo trộn vị trí ngẫu nhiên
+    private bool CanPlaceAllGemsOnTestBoardRecursive(List<Gem> gems, int index, bool[,] testBoard, ref int attemptCount)
+    {
+        // Giới hạn số lần thử để tránh quá lâu
+        if (attemptCount >= MAX_BACKTRACK_ATTEMPTS)
+            return false;
+        
+        if (index >= gems.Count)
+            return true;
+        
+        Gem gem = gems[index];
         GemOrientation orientation = GemOrientation.Horizontal;
         if (gemOrientations != null && gemOrientations.ContainsKey(gem))
         {
@@ -1277,62 +1369,82 @@ public class BoardManager : MonoBehaviour
         
         // Xác định các hướng xoay dựa trên orientation
         bool canRotate = config.width != config.height;
-        bool[] rotationOptions;
+        bool isRotated = false;
         
-        if (!canRotate)
+        if (canRotate)
         {
-            rotationOptions = new bool[] { false };
-        }
-        else if (orientation == GemOrientation.Horizontal)
-        {
-            rotationOptions = new bool[] { config.width > config.height ? false : true };
-        }
-        else
-        {
-            rotationOptions = new bool[] { config.height > config.width ? false : true };
+            if (orientation == GemOrientation.Horizontal)
+                isRotated = config.width <= config.height;
+            else
+                isRotated = config.height <= config.width;
         }
         
-        // Thử đặt gem này ở mọi vị trí có thể
-        foreach (bool isRotated in rotationOptions)
+        int actualWidth = isRotated ? config.height : config.width;
+        int actualHeight = isRotated ? config.width : config.height;
+        
+        // Tạo danh sách vị trí có thể và xáo trộn ngẫu nhiên để giữ tính ngẫu nhiên
+        List<Vector2Int> validPositions = new List<Vector2Int>();
+        for (int x = 0; x <= boardWidth - actualWidth; x++)
         {
-            int actualWidth = isRotated ? config.height : config.width;
-            int actualHeight = isRotated ? config.width : config.height;
-            
-            for (int x = 0; x <= boardWidth - actualWidth; x++)
+            for (int y = 0; y <= boardHeight - actualHeight; y++)
             {
-                for (int y = 0; y <= boardHeight - actualHeight; y++)
+                if (CanPlaceGemOnTestBoard(x, y, actualWidth, actualHeight, testBoard))
                 {
-                    if (CanPlaceGemOnTestBoard(x, y, actualWidth, actualHeight, testBoard))
-                    {
-                        // Đặt gem tạm thời
-                        PlaceGemOnTestBoard(x, y, actualWidth, actualHeight, testBoard, false);
-                        
-                        // Đệ quy đặt gem tiếp theo
-                        List<Gem> remainingGems = new List<Gem>(gems);
-                        remainingGems.RemoveAt(0);
-                        
-                        if (CanPlaceAllGemsOnTestBoard(remainingGems, testBoard))
-                        {
-                            return true; // Thành công!
-                        }
-                        
-                        // Backtrack: xóa gem
-                        PlaceGemOnTestBoard(x, y, actualWidth, actualHeight, testBoard, true);
-                    }
+                    validPositions.Add(new Vector2Int(x, y));
                 }
             }
+        }
+        
+        // Xáo trộn ngẫu nhiên các vị trí để giữ tính ngẫu nhiên
+        for (int i = 0; i < validPositions.Count; i++)
+        {
+            int randomIndex = Random.Range(i, validPositions.Count);
+            Vector2Int temp = validPositions[i];
+            validPositions[i] = validPositions[randomIndex];
+            validPositions[randomIndex] = temp;
+        }
+        
+        // Thử đặt gem này ở các vị trí đã xáo trộn
+        foreach (var pos in validPositions)
+        {
+            attemptCount++;
+            if (attemptCount >= MAX_BACKTRACK_ATTEMPTS)
+                return false;
+            
+            int x = pos.x;
+            int y = pos.y;
+            
+            // Đặt gem tạm thời
+            PlaceGemOnTestBoard(x, y, actualWidth, actualHeight, testBoard, false);
+            
+            // Đệ quy đặt gem tiếp theo (không tạo List mới)
+            if (CanPlaceAllGemsOnTestBoardRecursive(gems, index + 1, testBoard, ref attemptCount))
+            {
+                return true; // Thành công!
+            }
+            
+            // Backtrack: xóa gem
+            PlaceGemOnTestBoard(x, y, actualWidth, actualHeight, testBoard, true);
         }
         
         return false; // Không thể đặt
     }
     
+    // Tối ưu: Early exit ngay khi gặp cell không trống
     private bool CanPlaceGemOnTestBoard(int x, int y, int width, int height, bool[,] testBoard)
     {
-        for (int i = 0; i < width; i++)
+        // Kiểm tra boundary trước
+        if (x + width > boardWidth || y + height > boardHeight)
+            return false;
+        
+        // Early exit: kiểm tra từng cell và return false ngay khi gặp cell không trống
+        int endX = x + width;
+        int endY = y + height;
+        for (int i = x; i < endX; i++)
         {
-            for (int j = 0; j < height; j++)
+            for (int j = y; j < endY; j++)
             {
-                if (!testBoard[x + i, y + j])
+                if (!testBoard[i, j])
                     return false;
             }
         }
