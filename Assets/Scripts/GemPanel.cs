@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
+using DG.Tweening;
 
 public class GemPanel : MonoBehaviour
 {
@@ -9,11 +10,32 @@ public class GemPanel : MonoBehaviour
     [SerializeField] private int baseCellSize = 30; // Kích thước mỗi cell của gem (dùng để tính tỉ lệ)
     [SerializeField] private float dimmedAlpha = 0.3f; // Độ mờ của gem khi chưa được thu thập (0-1)
     [SerializeField] private float animationDuration = 0.5f; // Thời gian animation bay gem (giây)
+    [SerializeField] private float animationDelayBetweenGems = 0.1f; // Khoảng cách thời gian giữa các animation (giây)
+    [SerializeField] private float fadeOutDuration = 0.2f; // Thời gian fade out gem trên board (giây)
     
     private List<GameObject> gemItems = new List<GameObject>(); // Danh sách các gem item đã tạo
     private Dictionary<int, List<GameObject>> gemItemsByGemId = new Dictionary<int, List<GameObject>>(); // Map gemId -> list of gem items
     private Dictionary<int, int> collectedCountByGemId = new Dictionary<int, int>(); // Track số lượng gem đã collected theo gemId
     private BoardManager boardManager;
+    private Queue<GemAnimationData> animationQueue = new Queue<GemAnimationData>(); // Queue để xử lý animation tuần tự
+    private bool isAnimating = false; // Flag để biết đang có animation đang chạy không
+    
+    // Class để lưu thông tin animation
+    private class GemAnimationData
+    {
+        public Gem gem;
+        public Vector3 startPos;
+        public Vector3 targetPos;
+        public GameObject targetGemItem;
+        
+        public GemAnimationData(Gem g, Vector3 start, Vector3 target, GameObject item)
+        {
+            gem = g;
+            startPos = start;
+            targetPos = target;
+            targetGemItem = item;
+        }
+    }
     
     private void Start()
     {
@@ -73,6 +95,13 @@ public class GemPanel : MonoBehaviour
         GameObject targetGemItem = GetNextUncollectedGemItem(gem.GemId);
         if (targetGemItem == null) return;
         
+        // Cập nhật collected count ngay để tránh gem item bị sử dụng lại
+        if (!collectedCountByGemId.ContainsKey(gem.GemId))
+        {
+            collectedCountByGemId[gem.GemId] = 0;
+        }
+        collectedCountByGemId[gem.GemId]++;
+        
         // Lấy vị trí của gem trên board (từ cell đầu tiên)
         Vector3 startPosition = GetGemBoardPosition(gem);
         if (startPosition == Vector3.zero) return;
@@ -80,8 +109,40 @@ public class GemPanel : MonoBehaviour
         // Lấy vị trí đích trong GemPanel
         Vector3 targetPosition = GetGemItemPosition(targetGemItem);
         
-        // Tạo animation bay gem từ board đến GemPanel
-        StartCoroutine(AnimateGemToPanel(gem, startPosition, targetPosition, targetGemItem));
+        // Thêm vào queue để xử lý tuần tự
+        animationQueue.Enqueue(new GemAnimationData(gem, startPosition, targetPosition, targetGemItem));
+        
+        // Bắt đầu xử lý queue nếu chưa có animation nào đang chạy
+        if (!isAnimating)
+        {
+            ProcessNextAnimationInQueue();
+        }
+    }
+    
+    private void ProcessNextAnimationInQueue()
+    {
+        if (animationQueue.Count == 0)
+        {
+            isAnimating = false;
+            return;
+        }
+        
+        isAnimating = true;
+        var animationData = animationQueue.Dequeue();
+        
+        // Delay nhỏ trước khi bắt đầu animation (nếu có animation khác đang chờ)
+        if (animationDelayBetweenGems > 0 && animationQueue.Count > 0)
+        {
+            DOVirtual.DelayedCall(animationDelayBetweenGems, () =>
+            {
+                AnimateGemToPanel(animationData.gem, animationData.startPos, animationData.targetPos, animationData.targetGemItem, ProcessNextAnimationInQueue);
+            });
+        }
+        else
+        {
+            // Chạy animation ngay lập tức
+            AnimateGemToPanel(animationData.gem, animationData.startPos, animationData.targetPos, animationData.targetGemItem, ProcessNextAnimationInQueue);
+        }
     }
     
     private GameObject GetNextUncollectedGemItem(int gemId)
@@ -351,12 +412,93 @@ public class GemPanel : MonoBehaviour
         gemItemsByGemId[gemId].Add(gemItem);
     }
     
-    private System.Collections.IEnumerator AnimateGemToPanel(Gem gem, Vector3 startPos, Vector3 targetPos, GameObject targetGemItem)
+    private void AnimateGemToPanel(Gem gem, Vector3 startPos, Vector3 targetPos, GameObject targetGemItem, System.Action onComplete = null)
     {
         // Lấy sprite của gem
         Sprite gemSprite = GetGemSprite(gem.GemId);
-        if (gemSprite == null) yield break;
+        if (gemSprite == null)
+        {
+            Debug.LogWarning($"AnimateGemToPanel: Cannot find sprite for gem {gem.GemId}");
+            onComplete?.Invoke();
+            return;
+        }
         
+        Debug.Log($"AnimateGemToPanel: Starting animation for gem {gem.GemId} with {gem.Cells?.Count ?? 0} cells");
+        
+        // Fade out gem trên board trước
+        FadeOutGemOnBoard(gem, () =>
+        {
+            Debug.Log("AnimateGemToPanel: Fade out completed, creating flying gem");
+            // Sau khi fade out xong, tạo flying gem và bay vào panel
+            CreateAndAnimateFlyingGem(gem, gemSprite, startPos, targetPos, targetGemItem, onComplete);
+        });
+    }
+    
+    private void FadeOutGemOnBoard(Gem gem, System.Action onComplete)
+    {
+        if (gem == null || gem.Cells == null || gem.Cells.Count == 0)
+        {
+            Debug.LogWarning("FadeOutGemOnBoard: Gem or cells is null/empty");
+            onComplete?.Invoke();
+            return;
+        }
+        
+        // Tạo sequence để fade out tất cả gem images trong các cells
+        Sequence fadeOutSequence = DOTween.Sequence();
+        int cellsWithImages = 0;
+        
+        foreach (var cell in gem.Cells)
+        {
+            if (cell == null) continue;
+            
+            // Lấy gemImage từ cell bằng method GetGemImage()
+            Image gemImage = cell.GetGemImage();
+            if (gemImage != null)
+            {
+                // Đảm bảo gemImage đang active
+                if (!gemImage.gameObject.activeSelf)
+                {
+                    gemImage.gameObject.SetActive(true);
+                }
+                
+                // Đảm bảo alpha ban đầu là 1 để có thể fade out
+                Color currentColor = gemImage.color;
+                currentColor.a = 1f;
+                gemImage.color = currentColor;
+                
+                cellsWithImages++;
+                // Fade out gem image - sẽ được join vào sequence
+                fadeOutSequence.Join(gemImage.DOFade(0f, fadeOutDuration));
+                Debug.Log($"Fading out gem image in cell ({cell.BoardX}, {cell.BoardY})");
+            }
+            else
+            {
+                Debug.LogWarning($"FadeOutGemOnBoard: No gemImage found in cell ({cell.BoardX}, {cell.BoardY})");
+            }
+        }
+        
+        Debug.Log($"FadeOutGemOnBoard: Found {cellsWithImages} cells with gem images to fade out");
+        
+        if (cellsWithImages == 0)
+        {
+            // Không có gem image nào để fade out, gọi callback ngay
+            Debug.LogWarning("FadeOutGemOnBoard: No gem images found to fade out");
+            onComplete?.Invoke();
+            return;
+        }
+        
+        // Callback khi fade out hoàn thành
+        fadeOutSequence.OnComplete(() =>
+        {
+            Debug.Log("FadeOutGemOnBoard: Fade out completed");
+            onComplete?.Invoke();
+        });
+        
+        fadeOutSequence.SetAutoKill(true);
+    }
+    
+    private void CreateAndAnimateFlyingGem(Gem gem, Sprite gemSprite, Vector3 startPos, Vector3 targetPos, GameObject targetGemItem, System.Action onComplete)
+    {
         // Tạo GameObject tạm thời để animate
         GameObject flyingGem = new GameObject("FlyingGem");
         Canvas canvas = GetComponentInParent<Canvas>();
@@ -384,41 +526,37 @@ public class GemPanel : MonoBehaviour
         }
         
         flyingRect.position = startPos;
+        flyingRect.localScale = Vector3.one;
         
-        // Animation bay từ startPos đến targetPos
-        float elapsed = 0f;
-        while (elapsed < animationDuration)
+        // Tạo Sequence để kết hợp move và scale animation
+        Sequence animationSequence = DOTween.Sequence();
+        
+        // Move animation từ startPos đến targetPos với ease out cubic
+        animationSequence.Append(flyingRect.DOMove(targetPos, animationDuration)
+            .SetEase(Ease.OutCubic));
+        
+        // Scale animation (nhỏ dần khi bay) - chạy cùng lúc với move
+        animationSequence.Join(flyingRect.DOScale(0.5f, animationDuration)
+            .SetEase(Ease.OutCubic));
+        
+        // Callback khi animation hoàn thành
+        animationSequence.OnComplete(() =>
         {
-            elapsed += Time.deltaTime;
-            float t = elapsed / animationDuration;
+            // Brighten gem item trong panel
+            BrightenGemItem(targetGemItem);
             
-            // Ease out curve
-            t = 1f - Mathf.Pow(1f - t, 3f);
+            // Xóa gem khỏi board
+            RemoveGemFromBoard(gem);
             
-            flyingRect.position = Vector3.Lerp(startPos, targetPos, t);
+            // Destroy flying gem
+            Destroy(flyingGem);
             
-            // Scale animation (nhỏ dần khi bay)
-            float scale = Mathf.Lerp(1f, 0.5f, t);
-            flyingRect.localScale = Vector3.one * scale;
-            
-            yield return null;
-        }
+            // Gọi callback để xử lý animation tiếp theo trong queue
+            onComplete?.Invoke();
+        });
         
-        // Brighten gem item trong panel
-        BrightenGemItem(targetGemItem);
-        
-        // Cập nhật collected count
-        if (!collectedCountByGemId.ContainsKey(gem.GemId))
-        {
-            collectedCountByGemId[gem.GemId] = 0;
-        }
-        collectedCountByGemId[gem.GemId]++;
-        
-        // Xóa gem khỏi board
-        RemoveGemFromBoard(gem);
-        
-        // Destroy flying gem
-        Destroy(flyingGem);
+        // Set auto kill để tự động cleanup
+        animationSequence.SetAutoKill(true);
     }
     
     private Sprite GetGemSprite(int gemId)

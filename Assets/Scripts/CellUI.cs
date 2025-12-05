@@ -1,6 +1,7 @@
 using UnityEngine;
 using UnityEngine.UI;
 using UnityEngine.EventSystems;
+using DG.Tweening;
 
 public class CellUI : MonoBehaviour, IPointerClickHandler
 {
@@ -380,6 +381,28 @@ public class CellUI : MonoBehaviour, IPointerClickHandler
         {
             GameManager.Instance.DigCellUI(this);
         }
+    }
+    
+    // Fade out gem image trong cell này
+    public void FadeOutGemImage(float duration, System.Action onComplete = null)
+    {
+        if (gemImage == null)
+        {
+            onComplete?.Invoke();
+            return;
+        }
+        
+        gemImage.DOFade(0f, duration)
+            .OnComplete(() =>
+            {
+                onComplete?.Invoke();
+            });
+    }
+    
+    // Lấy gemImage để fade out (public getter)
+    public Image GetGemImage()
+    {
+        return gemImage;
     }
 }
 
