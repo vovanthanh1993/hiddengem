@@ -24,6 +24,12 @@ public class StageManager : MonoBehaviour
     public int CurrentStageId => currentStageId;
     public StageConfig CurrentStageConfig => currentStageConfig;
     
+    public List<Gem> GetCollectedGems()
+    {
+        if (boardManager == null) return new List<Gem>();
+        return boardManager.GetCollectedGems();
+    }
+    
     private void Awake()
     {
         if (Instance == null)
