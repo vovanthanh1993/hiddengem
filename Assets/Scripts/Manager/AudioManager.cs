@@ -4,8 +4,8 @@ using System.IO;
 
 public enum AudioLoadMode
 {
-    Manual,      // Load từ Inspector (sounds array)
-    FromFolder   // Load tự động từ thư mục Resources
+    Manual,      // Load from Inspector (sounds array)
+    FromFolder   // Load automatically from Resources folder
 }
 
 public class AudioManager : MonoBehaviour
@@ -20,19 +20,19 @@ public class AudioManager : MonoBehaviour
     }
     
     [Header("Audio Settings")]
-    [Tooltip("Chế độ load audio: Manual (từ Inspector) hoặc FromFolder (từ thư mục Resources)")]
+    [Tooltip("Audio load mode: Manual (from Inspector) or FromFolder (from Resources folder)")]
     [SerializeField] private AudioLoadMode loadMode = AudioLoadMode.Manual;
     
-    [Tooltip("Danh sách các audio clip (tự động load khi loadMode = FromFolder)")]
+    [Tooltip("List of audio clips (automatically loaded when loadMode = FromFolder)")]
     [SerializeField] private Sound[] sounds;
     
-    [Tooltip("Đường dẫn thư mục trong Resources chứa audio clips (ví dụ: 'Audio/SFX' hoặc 'Sounds')")]
+    [Tooltip("Folder path in Resources containing audio clips (e.g., 'Audio/SFX' or 'Sounds')")]
     [SerializeField] private string audioFolderPath = "Audio";
     
-    [Tooltip("AudioSource để phát sound effects")]
+    [Tooltip("AudioSource for playing sound effects")]
     [SerializeField] private AudioSource sfxSource;
     
-    [Tooltip("AudioSource để phát background music")]
+    [Tooltip("AudioSource for playing background music")]
     [SerializeField] private AudioSource musicSource;
     
     private Dictionary<string, AudioClip> soundDictionary = new Dictionary<string, AudioClip>();
@@ -53,7 +53,7 @@ public class AudioManager : MonoBehaviour
     
     private void InitializeAudio()
     {
-        // Tạo AudioSource nếu chưa có
+        // Create AudioSource if not exists
         if (sfxSource == null)
         {
             sfxSource = gameObject.AddComponent<AudioSource>();
@@ -67,56 +67,56 @@ public class AudioManager : MonoBehaviour
             musicSource.loop = true;
         }
         
-        // Load audio theo chế độ đã chọn
+        // Load audio based on selected mode
         if (loadMode == AudioLoadMode.FromFolder)
         {
             LoadSoundsFromFolder();
         }
         
-        // Load từ mảng sounds vào dictionary (dùng cho cả Manual và FromFolder)
+        // Load from sounds array into dictionary (used for both Manual and FromFolder)
         LoadSoundsFromArray();
         
-        // Load settings từ PlayerPrefs và áp dụng
+        // Load settings from PlayerPrefs and apply
         LoadAudioSettings();
         
-        Debug.Log($"AudioManager: Đã load {soundDictionary.Count} audio clips.");
+        Debug.Log($"AudioManager: Loaded {soundDictionary.Count} audio clips.");
     }
     
     /// <summary>
-    /// Load audio settings từ PlayerPrefs và áp dụng
+    /// Load audio settings from PlayerPrefs and apply
     /// </summary>
     private void LoadAudioSettings()
     {
-        // Load SFX setting (mặc định là bật = 1)
+        // Load SFX setting (default is enabled = 1)
         bool sfxEnabled = PlayerPrefs.GetInt("SFXEnabled", 1) == 1;
         SetSFXVolume(sfxEnabled ? 1f : 0f);
         
-        // Load Music setting (mặc định là bật = 1)
+        // Load Music setting (default is enabled = 1)
         bool musicEnabled = PlayerPrefs.GetInt("MusicEnabled", 1) == 1;
         SetMusicVolume(musicEnabled ? 1f : 0f);
     }
     
     /// <summary>
-    /// Load tất cả AudioClip từ thư mục Resources và đưa vào mảng sounds
+    /// Load all AudioClips from Resources folder and add to sounds array
     /// </summary>
     private void LoadSoundsFromFolder()
     {
         if (string.IsNullOrEmpty(audioFolderPath))
         {
-            Debug.LogWarning("AudioManager: Đường dẫn thư mục audio không được để trống!");
+            Debug.LogWarning("AudioManager: Audio folder path cannot be empty!");
             return;
         }
         
-        // Load tất cả AudioClip từ thư mục Resources
+        // Load all AudioClips from Resources folder
         AudioClip[] clips = Resources.LoadAll<AudioClip>(audioFolderPath);
         
         if (clips == null || clips.Length == 0)
         {
-            Debug.LogWarning($"AudioManager: Không tìm thấy audio clip nào trong thư mục 'Resources/{audioFolderPath}'!");
+            Debug.LogWarning($"AudioManager: No audio clips found in folder 'Resources/{audioFolderPath}'!");
             return;
         }
         
-        // Tạo mảng Sound[] từ các clip đã load
+        // Create Sound[] array from loaded clips
         sounds = new Sound[clips.Length];
         for (int i = 0; i < clips.Length; i++)
         {
@@ -124,17 +124,17 @@ public class AudioManager : MonoBehaviour
             {
                 sounds[i] = new Sound
                 {
-                    name = clips[i].name, // Tên file không có extension
+                    name = clips[i].name, // File name without extension
                     clip = clips[i]
                 };
             }
         }
         
-        Debug.Log($"AudioManager: Đã load {clips.Length} audio clips từ 'Resources/{audioFolderPath}' vào mảng sounds");
+        Debug.Log($"AudioManager: Loaded {clips.Length} audio clips from 'Resources/{audioFolderPath}' into sounds array");
     }
     
     /// <summary>
-    /// Load từ mảng sounds vào dictionary
+    /// Load from sounds array into dictionary
     /// </summary>
     private void LoadSoundsFromArray()
     {
@@ -150,7 +150,7 @@ public class AudioManager : MonoBehaviour
                     }
                     else
                     {
-                        Debug.LogWarning($"AudioManager: Tên '{sound.name}' đã tồn tại, bỏ qua.");
+                        Debug.LogWarning($"AudioManager: Name '{sound.name}' already exists, skipping.");
                     }
                 }
             }
@@ -158,7 +158,7 @@ public class AudioManager : MonoBehaviour
     }
     
     /// <summary>
-    /// Load lại audio từ thư mục (có thể gọi từ code nếu cần)
+    /// Reload audio from folder (can be called from code if needed)
     /// </summary>
     public void ReloadSounds()
     {
@@ -171,15 +171,15 @@ public class AudioManager : MonoBehaviour
     }
     
     /// <summary>
-    /// Phát sound effect theo tên
+    /// Play sound effect by name
     /// </summary>
-    /// <param name="soundName">Tên của sound (phải khớp với tên trong danh sách sounds)</param>
-    /// <param name="volume">Volume (0-1), mặc định là 1. Sẽ được nhân với volume từ settings</param>
+    /// <param name="soundName">Name of the sound (must match name in sounds list)</param>
+    /// <param name="volume">Volume (0-1), default is 1. Will be multiplied with volume from settings</param>
     public void PlaySound(string soundName, float volume = 1f)
     {
         if (string.IsNullOrEmpty(soundName))
         {
-            Debug.LogWarning("AudioManager: Tên sound không được để trống!");
+            Debug.LogWarning("AudioManager: Sound name cannot be empty!");
             return;
         }
         
@@ -187,7 +187,7 @@ public class AudioManager : MonoBehaviour
         {
             if (sfxSource != null)
             {
-                // Sử dụng volume từ AudioSource (đã được set từ settings) và nhân với volume được truyền vào
+                // Use volume from AudioSource (already set from settings) and multiply with passed volume
                 float finalVolume = volume * sfxSource.volume;
                 
                 sfxSource.PlayOneShot(soundDictionary[soundName], finalVolume);
@@ -195,21 +195,21 @@ public class AudioManager : MonoBehaviour
         }
         else
         {
-            Debug.LogWarning($"AudioManager: Không tìm thấy sound với tên '{soundName}'!");
+            Debug.LogWarning($"AudioManager: Sound with name '{soundName}' not found!");
         }
     }
     
     /// <summary>
-    /// Phát background music theo tên
+    /// Play background music by name
     /// </summary>
-    /// <param name="musicName">Tên của music</param>
-    /// <param name="volume">Volume (0-1), mặc định là 1. Sẽ được nhân với volume từ settings</param>
-    /// <param name="loop">Có lặp lại không, mặc định là true</param>
+    /// <param name="musicName">Name of the music</param>
+    /// <param name="volume">Volume (0-1), default is 1. Will be multiplied with volume from settings</param>
+    /// <param name="loop">Whether to loop, default is true</param>
     public void PlayMusic(string musicName, float volume = 1f, bool loop = true)
     {
         if (string.IsNullOrEmpty(musicName))
         {
-            Debug.LogWarning("AudioManager: Tên music không được để trống!");
+            Debug.LogWarning("AudioManager: Music name cannot be empty!");
             return;
         }
         
@@ -217,7 +217,7 @@ public class AudioManager : MonoBehaviour
         {
             if (musicSource != null)
             {
-                // Sử dụng volume từ AudioSource (đã được set từ settings) và nhân với volume được truyền vào
+                // Use volume from AudioSource (already set from settings) and multiply with passed volume
                 float finalVolume = volume * musicSource.volume;
                 
                 musicSource.clip = soundDictionary[musicName];
@@ -228,12 +228,12 @@ public class AudioManager : MonoBehaviour
         }
         else
         {
-            Debug.LogWarning($"AudioManager: Không tìm thấy music với tên '{musicName}'!");
+            Debug.LogWarning($"AudioManager: Music with name '{musicName}' not found!");
         }
     }
     
     /// <summary>
-    /// Dừng background music
+    /// Stop background music
     /// </summary>
     public void StopMusic()
     {
@@ -244,7 +244,7 @@ public class AudioManager : MonoBehaviour
     }
     
     /// <summary>
-    /// Đặt volume cho sound effects
+    /// Set volume for sound effects
     /// </summary>
     public void SetSFXVolume(float volume)
     {
@@ -255,7 +255,7 @@ public class AudioManager : MonoBehaviour
     }
     
     /// <summary>
-    /// Đặt volume cho background music
+    /// Set volume for background music
     /// </summary>
     public void SetMusicVolume(float volume)
     {

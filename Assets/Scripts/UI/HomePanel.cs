@@ -6,8 +6,8 @@ using DG.Tweening;
 public class HomePanel : MonoBehaviour
 {
     [SerializeField] private Button startButton;
-    [SerializeField] private float scaleDuration = 0.5f; // Thời gian mỗi lần phóng to/thu nhỏ
-    [SerializeField] private float scaleAmount = 0.1f; // Độ phóng to/thu nhỏ (10%)
+    [SerializeField] private float scaleDuration = 0.5f; // Duration for each scale in/out
+    [SerializeField] private float scaleAmount = 0.1f; // Scale amount (e.g., 0.1 = 10%)
     
     private Tween scaleTween;
 
@@ -27,15 +27,15 @@ public class HomePanel : MonoBehaviour
         Vector3 originalScale = rectTransform.localScale;
         Vector3 targetScale = originalScale * (1f + scaleAmount);
         
-        // Tạo animation phóng to thu nhỏ liên tục
+        // Create continuous scale in/out animation
         scaleTween = rectTransform.DOScale(targetScale, scaleDuration)
             .SetEase(Ease.InOutSine)
-            .SetLoops(-1, LoopType.Yoyo); // Loop vô hạn với kiểu Yoyo (phóng to rồi thu nhỏ)
+            .SetLoops(-1, LoopType.Yoyo); // Infinite loop with Yoyo type (scale up then down)
     }
     
     private void OnDestroy()
     {
-        // Dừng animation khi destroy
+        // Stop animation when destroyed
         if (scaleTween != null)
         {
             scaleTween.Kill();

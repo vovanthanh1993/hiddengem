@@ -8,13 +8,15 @@ public class UIManager : MonoBehaviour
     
     [Header("UI References")]
     [SerializeField] private TextMeshProUGUI pickaxeCountText;
-    [SerializeField] private StagePanel stagePanel; // Reference đến StagePanel
-    [SerializeField] private AddPickaxePopup addPickaxePopup; // Reference đến AddPickaxePopup
-    [SerializeField] private RewardChestPopup rewardChestPopup; // Reference đến RewardChestPopup
-    [SerializeField] private SettingPanel settingPanel; // Reference đến SettingPanel
+    [SerializeField] private StagePanel stagePanel; // Reference to StagePanel
+    [SerializeField] private AddPickaxePopup addPickaxePopup; // Reference to AddPickaxePopup
+    [SerializeField] private RewardChestPopup rewardChestPopup; // Reference to RewardChestPopup
+    [SerializeField] private SettingPanel settingPanel; // Reference to SettingPanel
+
+    [SerializeField] private GamePlayPanel gamePlayPanel; // Reference to GamePlayPanel
     
     [Header("Complete Screen")]
-    [SerializeField] private TextMeshProUGUI completeText; // Text hiển thị khi hoàn thành tất cả stage
+    [SerializeField] private TextMeshProUGUI completeText; // Text displayed when all stages are completed
     
     private void Awake()
     {
@@ -42,7 +44,34 @@ public class UIManager : MonoBehaviour
             UpdatePickaxeCount(PickaxeManager.Instance.CurrentPickaxes);
         }
         
-        HideCompletionScreen(); // Ẩn complete screen và text ban đầu
+        // Check if all stages are completed to decide whether to show CompleteText
+        CheckAndShowCompletionScreen();
+    }
+    
+    /// <summary>
+    /// Check and show completion screen if all stages are completed
+    /// </summary>
+    private void CheckAndShowCompletionScreen()
+    {
+        if (StageManager.Instance != null && StageManager.Instance.StageConfigData != null)
+        {
+            int savedStage = PlayerPrefs.GetInt("ReachedStage", 1);
+            int totalStages = StageManager.Instance.StageConfigData.stageConfigs.Length;
+            
+            // If all stages are completed (savedStage > totalStages), show CompleteText
+            if (savedStage > totalStages)
+            {
+                ShowCompletionScreen();
+            }
+            else
+            {
+                HideCompletionScreen(); // Hide if not all stages completed
+            }
+        }
+        else
+        {
+            HideCompletionScreen(); // Hide if StageManager is not available
+        }
     }
     
     private void SubscribeToEvents()
@@ -61,7 +90,7 @@ public class UIManager : MonoBehaviour
         }
     }
     
-    // Method để unlock button của stage vừa hoàn thành
+    // Method to unlock button of the stage that was just completed
     public void UnlockStageRewardButton(int completedStageId)
     {
         if (stagePanel != null)
@@ -72,7 +101,7 @@ public class UIManager : MonoBehaviour
     
     public void UpdateStage(int stageId)
     {
-        // Update stage trong StagePanel
+        // Update stage in StagePanel
         if (stagePanel != null)
         {
             stagePanel.UpdateStage(stageId);
@@ -124,10 +153,22 @@ public class UIManager : MonoBehaviour
     
     public void ShowCompletionScreen()
     {
-        // Hiển thị complete text (đã có sẵn text)
+        // Show complete text (text already exists)
         if (completeText != null)
         {
             completeText.gameObject.SetActive(true);
+        }
+        
+        // Show resetButton in GamePlayPanel
+        ShowResetButton();
+    }
+    
+    private void ShowResetButton()
+    {
+        // Find GamePlayPanel and show resetButton
+        if (gamePlayPanel != null)
+        {
+            gamePlayPanel.ShowResetButton();
         }
     }
     

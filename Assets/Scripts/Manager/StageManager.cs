@@ -10,15 +10,15 @@ public class StageManager : MonoBehaviour
     [SerializeField] private GemConfigData gemConfigData;
     [SerializeField] private BoardManager boardManager;
     [SerializeField] private GameObject gemPrefab;
-    [SerializeField] private ParticleSystem stageCompleteParticlePrefab; // Particle effect khi hoàn thành stage
-    [SerializeField] private float stageCompleteParticleDuration = 1f; // Thời gian hiển thị particle
+    [SerializeField] private ParticleSystem stageCompleteParticlePrefab; // Particle effect when stage is completed
+    [SerializeField] private float stageCompleteParticleDuration = 1f; // Duration to display particle
     
     public GemConfigData GetGemConfigData() => gemConfigData;
     
     private int currentStageId = 1;
     private StageConfig currentStageConfig;
     private List<Gem> stageGems;
-    private Dictionary<Gem, GemOrientation> gemOrientations; // Lưu orientation cho mỗi gem
+    private Dictionary<Gem, GemOrientation> gemOrientations; // Store orientation for each gem
     private bool isStageCompleted = false;
     
     public event Action<int> OnStageChanged;
@@ -26,6 +26,37 @@ public class StageManager : MonoBehaviour
     public int CurrentStageId => currentStageId;
     public StageConfig CurrentStageConfig => currentStageConfig;
     public StageConfigData StageConfigData => stageConfigData;
+    
+    /// <summary>
+    /// Save reached stage to PlayerPrefs
+    /// </summary>
+    private void SaveReachedStage(int stageId)
+    {
+        // Get current reached stage
+        int currentReachedStage = PlayerPrefs.GetInt("ReachedStage", 1);
+        
+        // Only save if new stage is greater than current reached stage
+        if (stageId > currentReachedStage)
+        {
+            PlayerPrefs.SetInt("ReachedStage", stageId);
+            PlayerPrefs.Save(); // Important: must call Save() to save to file immediately
+            Debug.Log($"Saved reached stage: {stageId} (previous: {currentReachedStage})");
+        }
+        else
+        {
+            Debug.Log($"Not saving stage {stageId} because higher stage already exists: {currentReachedStage}");
+        }
+    }
+    
+    /// <summary>
+    /// Load reached stage from PlayerPrefs
+    /// </summary>
+    public int LoadReachedStage()
+    {
+        int savedStage = PlayerPrefs.GetInt("ReachedStage", 1); // Default is stage 1
+        Debug.Log($"Load reached stage from PlayerPrefs: {savedStage}");
+        return savedStage;
+    }
     
     public List<Gem> GetCollectedGems()
     {
@@ -44,7 +75,7 @@ public class StageManager : MonoBehaviour
             Destroy(gameObject);
         }
         
-        // Tự động load asset từ Resources nếu chưa được assign
+        // Automatically load asset from Resources if not assigned
         if (stageConfigData == null)
         {
             stageConfigData = Resources.Load<StageConfigData>("StageConfigData");
@@ -66,12 +97,13 @@ public class StageManager : MonoBehaviour
     
     private void Start()
     {
-        LoadStage(1);
+        // Don't load stage here anymore because GameManager will load reached stage
+        // LoadStage(1); // Removed - GameManager will load stage from PlayerPrefs
     }
     
     public void LoadStage(int stageId)
     {
-        // Kiểm tra null trước khi sử dụng
+        // Check null before using
         if (stageConfigData == null)
         {
             Debug.LogError("StageConfigData is not assigned!");
@@ -109,8 +141,8 @@ public class StageManager : MonoBehaviour
         // Create gems for this stage
         CreateStageGems();
         
-        // Không đặt gems lên board ngay từ đầu, chỉ lưu vào pool
-        // Gems sẽ được spawn khi người chơi đào trúng
+        // Don't place gems on board immediately, only store in pool
+        // Gems will be spawned when player digs correctly
         boardManager.InitializeGemPool(stageGems, gemConfigData, gemOrientations);
         
         // Place dynamites
@@ -125,7 +157,7 @@ public class StageManager : MonoBehaviour
     
     private void CreateStageGems()
     {
-        // Xóa các gem cũ từ stage trước (nếu có)
+        // Clear old gems from previous stage (if any)
         if (stageGems != null)
         {
             foreach (var oldGem in stageGems)
@@ -166,7 +198,7 @@ public class StageManager : MonoBehaviour
                 );
                 
                 stageGems.Add(gem);
-                // Lưu orientation cho gem này
+                // Store orientation for this gem
                 gemOrientations[gem] = request.orientation;
             }
         }
@@ -174,7 +206,7 @@ public class StageManager : MonoBehaviour
     
     public bool CheckStageComplete()
     {
-        if (isStageCompleted) return false; // Đã hoàn thành rồi, không check lại
+        if (isStageCompleted) return false; // Already completed, don't check again
         
         var collectedGems = boardManager.GetCollectedGems();
         int totalGemsNeeded = boardManager.GetTotalGemsNeeded();
@@ -183,20 +215,20 @@ public class StageManager : MonoBehaviour
     
     public void CompleteStage()
     {
-        if (isStageCompleted) return; // Tránh gọi nhiều lần
+        if (isStageCompleted) return; // Avoid calling multiple times
         
         isStageCompleted = true;
         
-        // Phát sound win khi hoàn thành stage
+        // Play win sound when stage is completed
         if (AudioManager.Instance != null)
         {
             AudioManager.Instance.PlayWinSound();
         }
         
-        // Spawn particle effect ở giữa màn hình khi hoàn thành stage (delay 0.2s)
+        // Spawn particle effect in the middle of screen when stage is completed (delay 0.2s)
         StartCoroutine(DelayedSpawnStageCompleteParticle(0.2f));
         
-        // Disable input để không cho đào nữa
+        // Disable input to prevent digging
         if (boardManager != null)
         {
             boardManager.SetInputEnabled(false);
@@ -204,10 +236,16 @@ public class StageManager : MonoBehaviour
         
         int completedStageId = currentStageId;
         
-        // Mở khóa button phần thưởng của stage vừa hoàn thành
+        // Save next stage (unlocked) immediately when stage is completed
+        // To ensure save even if user leaves game before loading next stage
+        // When completing stage 5 (last stage), will save as 6 to know all stages are completed
+        int nextStageId = completedStageId + 1;
+        SaveReachedStage(nextStageId);
+        
+        // Unlock reward button for the stage that was just completed
         UIManager.Instance?.UnlockStageRewardButton(completedStageId);
         
-        // Delay 1s trước khi chuyển sang stage tiếp theo
+        // Delay 1s before switching to next stage
         StartCoroutine(DelayedLoadNextStage(1f));
     }
     
@@ -215,7 +253,7 @@ public class StageManager : MonoBehaviour
     {
         yield return new WaitForSeconds(delay);
         
-        // Tự động chuyển sang stage tiếp theo
+        // Automatically switch to next stage
         if (currentStageId < stageConfigData.stageConfigs.Length)
         {
             LoadNextStage();
@@ -230,13 +268,13 @@ public class StageManager : MonoBehaviour
     
     private void ShowCompletionScreen()
     {
-        // Ẩn board
+        // Hide board
         if (boardManager != null)
         {
             boardManager.SetBoardVisible(false);
         }
         
-        // Hiển thị complete screen
+        // Show completion screen
         UIManager.Instance?.ShowCompletionScreen();
     }
     
@@ -250,12 +288,16 @@ public class StageManager : MonoBehaviour
     {
         if (currentStageId < stageConfigData.stageConfigs.Length)
         {
-            LoadStage(currentStageId + 1);
+            int nextStageId = currentStageId + 1;
+            LoadStage(nextStageId);
+            
+            // Stage already saved in CompleteStage(), no need to save again here
         }
         else
         {
             Debug.Log("All stages completed!");
             // Show completion screen
+            // Stage already saved in CompleteStage(), no need to save again here
         }
     }
     
@@ -273,40 +315,40 @@ public class StageManager : MonoBehaviour
             return;
         }
         
-        // Tạo particle system instance
+        // Create particle system instance
         ParticleSystem particle = Instantiate(stageCompleteParticlePrefab);
         
-        // Đặt particle ở giữa màn hình
-        // Với Canvas Screen Space Overlay, cần tính toán vị trí world space
+        // Place particle in the middle of screen
+        // With Canvas Screen Space Overlay, need to calculate world space position
         Canvas canvas = FindObjectOfType<Canvas>();
         if (canvas != null && canvas.renderMode == RenderMode.ScreenSpaceOverlay)
         {
-            // Lấy kích thước màn hình
+            // Get screen size
             Vector2 screenSize = new Vector2(Screen.width, Screen.height);
             Vector2 centerScreen = screenSize * 0.5f;
             
-            // Convert screen position sang world position
-            // Với Screen Space Overlay, cần đặt particle ở một khoảng cách trước camera
+            // Convert screen position to world position
+            // With Screen Space Overlay, need to place particle at a distance before camera
             Camera mainCamera = Camera.main;
             if (mainCamera != null)
             {
                 Vector3 worldPosition = mainCamera.ScreenToWorldPoint(new Vector3(centerScreen.x, centerScreen.y, mainCamera.nearClipPlane + 1f));
-                worldPosition.z = mainCamera.transform.position.z + 1f; // Đặt trước camera một chút
+                worldPosition.z = mainCamera.transform.position.z + 1f; // Place slightly before camera
                 particle.transform.position = worldPosition;
             }
             else
             {
-                // Nếu không có camera, đặt ở origin
+                // If no camera, place at origin
                 particle.transform.position = Vector3.zero;
             }
         }
         else
         {
-            // Nếu không có Canvas hoặc Canvas không phải Screen Space Overlay, đặt ở origin
+            // If no Canvas or Canvas is not Screen Space Overlay, place at origin
             particle.transform.position = Vector3.zero;
         }
         
-        // Đảm bảo Particle System render đúng
+        // Ensure Particle System renders correctly
         var renderer = particle.GetComponent<ParticleSystemRenderer>();
         if (renderer != null)
         {
@@ -316,7 +358,7 @@ public class StageManager : MonoBehaviour
         // Play particle system
         particle.Play();
         
-        // Destroy particle sau khi hoàn thành
+        // Destroy particle after completion
         Destroy(particle.gameObject, stageCompleteParticleDuration);
     }
     

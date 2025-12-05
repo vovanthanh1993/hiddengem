@@ -25,7 +25,7 @@ public class RewardChestPopup : MonoBehaviour
     
     public void Show(StageRewardConfig reward)
     {
-        // Phát sound popup khi hiển thị popup
+        // Play popup sound when displaying popup
         if (AudioManager.Instance != null)
         {
             AudioManager.Instance.PlayPopupSound();
@@ -47,7 +47,7 @@ public class RewardChestPopup : MonoBehaviour
 
     private void OnOkButtonClicked()
     {
-        // Phát sound popup khi ẩn popup
+        // Play click sound when hiding popup
         if (AudioManager.Instance != null)
         {
             AudioManager.Instance.PlayClickSound();

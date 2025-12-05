@@ -30,7 +30,7 @@ public class AddPickaxePopup : MonoBehaviour
     
     public void Show()
     {
-        // Phát sound popup khi hiển thị popup
+        // Play popup sound when displaying popup
         if (AudioManager.Instance != null)
         {
             AudioManager.Instance.PlayPopupSound();

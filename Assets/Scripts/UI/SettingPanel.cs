@@ -9,22 +9,22 @@ public class SettingPanel : MonoBehaviour
     public Button closeBtn;
     
     [Header("SFX Settings")]
-    [Tooltip("Nút bật/tắt SFX")]
+    [Tooltip("Button to toggle SFX on/off")]
     public Button sfxOnButton;
-    [Tooltip("Nút bật/tắt SFX")]
+    [Tooltip("Button to toggle SFX on/off")]
     public Button sfxOffButton;
     
     [Header("Music Settings")]
-    [Tooltip("Nút bật/tắt Music")]
+    [Tooltip("Button to toggle Music on/off")]
     public Button musicOnButton;
-    [Tooltip("Nút bật/tắt Music")]
+    [Tooltip("Button to toggle Music on/off")]
     public Button musicOffButton;
     
     private bool sfxEnabled = true;
     private bool musicEnabled = true;
 
     private void OnEnable() {
-        // Load settings từ PlayerPrefs hoặc dùng giá trị mặc định
+        // Load settings from PlayerPrefs or use default values
         LoadSettings();
         UpdateUI();
     }
@@ -34,18 +34,18 @@ public class SettingPanel : MonoBehaviour
         closeBtn.onClick.AddListener(OnCloseButtonClicked);
         
         // SFX buttons
-        // Click On button → tắt tiếng (enabled = false)
+        // Click On button → turn off sound (enabled = false)
         if (sfxOnButton != null)
             sfxOnButton.onClick.AddListener(() => OnSFXToggle(false));
-        // Click Off button → bật tiếng (enabled = true)
+        // Click Off button → turn on sound (enabled = true)
         if (sfxOffButton != null)
             sfxOffButton.onClick.AddListener(() => OnSFXToggle(true));
         
         // Music buttons
-        // Click On button → tắt tiếng (enabled = false)
+        // Click On button → turn off sound (enabled = false)
         if (musicOnButton != null)
             musicOnButton.onClick.AddListener(() => OnMusicToggle(false));
-        // Click Off button → bật tiếng (enabled = true)
+        // Click Off button → turn on sound (enabled = true)
         if (musicOffButton != null)
             musicOffButton.onClick.AddListener(() => OnMusicToggle(true));
     }
@@ -70,7 +70,7 @@ public class SettingPanel : MonoBehaviour
         UpdateUI();
         SaveSettings();
         
-        // Phát sound khi điều chỉnh
+        // Play sound when adjusting
         if (AudioManager.Instance != null && sfxEnabled)
         {
             AudioManager.Instance.PlayChangeSound();
@@ -96,7 +96,7 @@ public class SettingPanel : MonoBehaviour
         UpdateUI();
         SaveSettings();
         
-        // Phát sound khi điều chỉnh
+        // Play sound when adjusting
         if (AudioManager.Instance != null && sfxEnabled)
         {
             AudioManager.Instance.PlayChangeSound();
@@ -117,17 +117,17 @@ public class SettingPanel : MonoBehaviour
     
     private void UpdateUI()
     {
-        // Update SFX buttons - hiện/ẩn theo trạng thái
+        // Update SFX buttons - show/hide based on state
         if (sfxOnButton != null)
-            sfxOnButton.gameObject.SetActive(sfxEnabled); // Hiện khi đang bật
+            sfxOnButton.gameObject.SetActive(sfxEnabled); // Show when enabled
         if (sfxOffButton != null)
-            sfxOffButton.gameObject.SetActive(!sfxEnabled); // Hiện khi đang tắt
+            sfxOffButton.gameObject.SetActive(!sfxEnabled); // Show when disabled
         
-        // Update Music buttons - hiện/ẩn theo trạng thái
+        // Update Music buttons - show/hide based on state
         if (musicOnButton != null)
-            musicOnButton.gameObject.SetActive(musicEnabled); // Hiện khi đang bật
+            musicOnButton.gameObject.SetActive(musicEnabled); // Show when enabled
         if (musicOffButton != null)
-            musicOffButton.gameObject.SetActive(!musicEnabled); // Hiện khi đang tắt
+            musicOffButton.gameObject.SetActive(!musicEnabled); // Show when disabled
     }
     
     #endregion
@@ -146,7 +146,7 @@ public class SettingPanel : MonoBehaviour
         sfxEnabled = PlayerPrefs.GetInt("SFXEnabled", 1) == 1;
         musicEnabled = PlayerPrefs.GetInt("MusicEnabled", 1) == 1;
         
-        // Áp dụng settings ngay khi load
+        // Apply settings immediately when loading
         ApplySFXSettings();
         ApplyMusicSettings();
     }

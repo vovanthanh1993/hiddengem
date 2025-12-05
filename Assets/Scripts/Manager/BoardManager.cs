@@ -6,29 +6,29 @@ using UnityEngine.UI;
 public class BoardManager : MonoBehaviour
 {
     [Header("UI Settings")]
-    [SerializeField] private CellUI cellUIPrefab; // Prefab cho UI cell
-    [SerializeField] private RectTransform boardParentUI; // Parent trong Canvas cho UI cells
-    [SerializeField] private int cellSize = 100; // Kích thước mỗi cell (100x100 pixels)
+    [SerializeField] private CellUI cellUIPrefab; // Prefab for UI cell
+    [SerializeField] private RectTransform boardParentUI; // Parent in Canvas for UI cells
+    [SerializeField] private int cellSize = 100; // Size of each cell (100x100 pixels)
     
     [Header("Explosion Effects")]
-    [SerializeField] private ParticleSystem explosionParticlePrefab; // Prefab cho explosion particle system
-    [SerializeField] private float explosionParticleDuration = 1.5f; // Thời gian hiệu ứng nổ
+    [SerializeField] private ParticleSystem explosionParticlePrefab; // Prefab for explosion particle system
+    [SerializeField] private float explosionParticleDuration = 1.5f; // Duration of explosion effect
     
     [Header("Digging Settings")]
-    [SerializeField] private float digCooldown = 0.3f; // Khoảng cách thời gian giữa mỗi lần đào (giây)
+    [SerializeField] private float digCooldown = 0.3f; // Time interval between each dig (seconds)
     
     private CellUI[,] board;
-    private float lastDigTime = 0f; // Thời gian lần đào cuối cùng
+    private float lastDigTime = 0f; // Time of last dig
     private int boardWidth;
     private int boardHeight;
     private List<Gem> hiddenGems;
-    private List<Gem> unplacedGems; // Pool các gems chưa được đặt lên board
+    private List<Gem> unplacedGems; // Pool of gems not yet placed on board
     private List<Vector2Int> dynamitePositions;
     private GemConfigData gemConfigData;
     private Dictionary<Gem, GemOrientation> gemOrientations;
-    private bool isInputEnabled = true; // Flag để kiểm soát việc cho phép đào hay không
+    private bool isInputEnabled = true; // Flag to control whether digging is allowed
     
-    public event System.Action<Gem> OnGemCollected; // Event khi gem được collected
+    public event System.Action<Gem> OnGemCollected; // Event when gem is collected
     
     public CellUI[,] Board => board;
     public int BoardWidth => boardWidth;
@@ -55,9 +55,9 @@ public class BoardManager : MonoBehaviour
         hiddenGems = new List<Gem>();
         unplacedGems = new List<Gem>();
         dynamitePositions = new List<Vector2Int>();
-        isInputEnabled = true; // Enable input khi khởi tạo board mới
+        isInputEnabled = true; // Enable input when initializing new board
         
-        // Tạo boardParentUI nếu chưa có
+        // Create boardParentUI if not exists
         if (boardParentUI == null)
         {
             GameObject canvasObj = GameObject.Find("Canvas");
@@ -79,7 +79,7 @@ public class BoardManager : MonoBehaviour
             boardParentUI.anchoredPosition = Vector2.zero;
         }
         
-        // Cập nhật kích thước board
+        // Update board size
         boardParentUI.sizeDelta = new Vector2(width * cellSize, height * cellSize);
         
         // Clear existing cells
@@ -88,7 +88,7 @@ public class BoardManager : MonoBehaviour
             Destroy(child.gameObject);
         }
         
-        // Tạo cells với GridLayoutGroup để tự động sắp xếp
+        // Create cells with GridLayoutGroup for automatic arrangement
         GridLayoutGroup gridLayout = boardParentUI.GetComponent<GridLayoutGroup>();
         if (gridLayout == null)
         {
@@ -111,7 +111,7 @@ public class BoardManager : MonoBehaviour
             }
         }
         
-        // Set stone layers ngẫu nhiên cho tất cả các cell (1 hoặc 2 layers)
+        // Set random stone layers for all cells (1 or 2 layers)
         for (int y = 0; y < height; y++)
         {
             for (int x = 0; x < width; x++)
@@ -147,10 +147,10 @@ public class BoardManager : MonoBehaviour
     
     public void InitializeGemPool(List<Gem> gems, GemConfigData configData, Dictionary<Gem, GemOrientation> orientations = null)
     {
-        // Xóa các gem cũ khỏi board và destroy các GameObject gem cũ
+        // Clear old gems from board and destroy old gem GameObjects
         ClearAllGems();
         
-        // Destroy các gem GameObject cũ từ unplacedGems và hiddenGems
+        // Destroy old gem GameObjects from unplacedGems and hiddenGems
         if (unplacedGems != null)
         {
             foreach (var oldGem in unplacedGems)
@@ -173,7 +173,7 @@ public class BoardManager : MonoBehaviour
             }
         }
         
-        // Lưu danh sách gems chưa được đặt vào pool (không đặt lên board ngay)
+        // Store list of unplaced gems in pool (not placed on board immediately)
         unplacedGems = new List<Gem>(gems);
         gemConfigData = configData;
         gemOrientations = orientations ?? new Dictionary<Gem, GemOrientation>();
@@ -186,33 +186,33 @@ public class BoardManager : MonoBehaviour
     {
         hiddenGems.Clear();
         
-        // Validation: Kiểm tra board có đủ chỗ không
+        // Validation: Check if board has enough space
         if (!ValidateBoardCapacity(gems, gemConfigData, gemOrientations))
         {
             Debug.LogError("Board is too small to fit all gems!");
             return false;
         }
         
-        // Retry mechanism: Thử nhiều lần với các cách sắp xếp khác nhau
+        // Retry mechanism: Try multiple times with different arrangements
         int maxRetries = 50;
         for (int retry = 0; retry < maxRetries; retry++)
         {
-            // Clear board trước mỗi lần thử
+            // Clear board before each attempt
             ClearAllGems();
             
-            // Sắp xếp gems theo kích thước (lớn trước) để dễ đặt hơn
+            // Sort gems by size (largest first) for easier placement
             List<Gem> sortedGems = new List<Gem>(gems);
             
-            // Xáo trộn một chút để có nhiều cách sắp xếp khác nhau
+            // Shuffle a bit to have different arrangements
             if (retry > 0)
             {
-                // Xáo trộn ngẫu nhiên nhưng vẫn ưu tiên gem lớn
+                // Random shuffle but still prioritize large gems
                 sortedGems.Sort((a, b) => 
                 {
                     int sizeA = a.Width * a.Height;
                     int sizeB = b.Width * b.Height;
                     int sizeCompare = sizeB.CompareTo(sizeA);
-                    // Nếu cùng kích thước, xáo trộn ngẫu nhiên
+                    // If same size, random shuffle
                     if (sizeCompare == 0)
                         return Random.Range(-1, 2);
                     return sizeCompare;
@@ -224,11 +224,11 @@ public class BoardManager : MonoBehaviour
                 {
                     int sizeA = a.Width * a.Height;
                     int sizeB = b.Width * b.Height;
-                    return sizeB.CompareTo(sizeA); // Lớn trước
+                    return sizeB.CompareTo(sizeA); // Largest first
                 });
             }
             
-            // Thử đặt tất cả gem với backtracking
+            // Try placing all gems with backtracking
             if (PlaceGemsWithBacktracking(sortedGems, gemConfigData, gemOrientations))
             {
                 Debug.Log($"Successfully placed all {gems.Count} gems after {retry + 1} attempt(s)");
@@ -256,7 +256,7 @@ public class BoardManager : MonoBehaviour
                 orientation = gemOrientations[gem];
             }
             
-            // Tính diện tích gem sau khi xoay theo orientation
+            // Calculate gem area after rotating according to orientation
             int gemArea;
             if (config.width == config.height)
             {
@@ -264,14 +264,14 @@ public class BoardManager : MonoBehaviour
             }
             else if (orientation == GemOrientation.Horizontal)
             {
-                // Nằm ngang: width > height
+                // Horizontal: width > height
                 gemArea = (config.width > config.height) ? 
                     config.width * config.height : 
                     config.height * config.width;
             }
             else // Vertical
             {
-                // Nằm dọc: height > width
+                // Vertical: height > width
                 gemArea = (config.height > config.width) ? 
                     config.width * config.height : 
                     config.height * config.width;
@@ -280,8 +280,8 @@ public class BoardManager : MonoBehaviour
             totalGemArea += gemArea;
         }
         
-        // Board phải có diện tích lớn hơn tổng diện tích gem (cần thêm buffer cho dynamite và spacing)
-        if (totalGemArea > totalBoardArea * 0.9f) // Cho phép 90% board được dùng cho gem
+        // Board must have area larger than total gem area (need buffer for dynamite and spacing)
+        if (totalGemArea > totalBoardArea * 0.9f) // Allow 90% of board to be used for gems
         {
             Debug.LogWarning($"Board capacity warning: Total gem area ({totalGemArea}) vs Board area ({totalBoardArea})");
             return false;
@@ -292,7 +292,7 @@ public class BoardManager : MonoBehaviour
     
     private void ClearAllGems()
     {
-        // Xóa tất cả gem khỏi board
+        // Remove all gems from board
         for (int x = 0; x < boardWidth; x++)
         {
             for (int y = 0; y < boardHeight; y++)
@@ -313,7 +313,7 @@ public class BoardManager : MonoBehaviour
     
     private bool PlaceGemsRecursive(List<Gem> gems, int index, GemConfigData gemConfigData, Dictionary<Gem, GemOrientation> gemOrientations)
     {
-        // Nếu đã đặt hết tất cả gem
+        // If all gems are placed
         if (index >= gems.Count)
         {
             return true;
@@ -326,10 +326,10 @@ public class BoardManager : MonoBehaviour
             orientation = gemOrientations[gem];
         }
         
-        // Lấy tất cả vị trí có thể đặt gem này
+        // Get all possible positions to place this gem
         List<PlacementOption> validPlacements = GetAllValidPlacements(gem, gemConfigData, orientation);
         
-        // Xáo trộn để có tính ngẫu nhiên
+        // Shuffle for randomness
         for (int i = 0; i < validPlacements.Count; i++)
         {
             int randomIndex = Random.Range(i, validPlacements.Count);
@@ -338,33 +338,33 @@ public class BoardManager : MonoBehaviour
             validPlacements[randomIndex] = temp;
         }
         
-        // Thử từng vị trí
+        // Try each position
         foreach (var placement in validPlacements)
         {
             var config = gemConfigData.GetGemConfig(gem.GemId);
             if (config == null) continue;
             
-            // Đặt gem tại vị trí này
+            // Place gem at this position
             PlaceGemAt(gem, placement.x, placement.y, config, placement.actualWidth, placement.actualHeight, placement.isRotated);
             hiddenGems.Add(gem);
             
-            // Đệ quy đặt gem tiếp theo
+            // Recursively place next gem
             if (PlaceGemsRecursive(gems, index + 1, gemConfigData, gemOrientations))
             {
-                return true; // Thành công!
+                return true; // Success!
             }
             
-            // Nếu không thành công, backtrack: xóa gem này
+            // If not successful, backtrack: remove this gem
             RemoveGem(gem);
             hiddenGems.Remove(gem);
         }
         
-        return false; // Không tìm được cách đặt
+        return false; // Could not find a way to place
     }
     
     public void RemoveGem(Gem gem)
     {
-        // Xóa gem khỏi tất cả cells
+        // Remove gem from all cells
         if (gem.Cells != null)
         {
             foreach (var cell in gem.Cells)
@@ -372,11 +372,11 @@ public class BoardManager : MonoBehaviour
                 if (cell != null)
                 {
                     cell.SetGem(null);
-                    // Reset cell về trạng thái ban đầu (stone)
+                    // Reset cell to initial state (stone)
                     cell.SetStoneLayers(Random.Range(0, 2) == 0 ? 1 : 2);
                 }
             }
-            // Clear danh sách cells của gem
+            // Clear gem's cell list
             gem.Cells.Clear();
         }
     }
@@ -436,28 +436,28 @@ public class BoardManager : MonoBehaviour
         var config = gemConfigData.GetGemConfig(gem.GemId);
         if (config == null) return false;
         
-        // Thu thập tất cả vị trí có thể đặt gem
+        // Collect all possible positions to place gem
         List<PlacementOption> validPlacements = new List<PlacementOption>();
         
-        // Xác định các hướng xoay dựa trên orientation được quy định
+        // Determine rotation directions based on specified orientation
         bool canRotate = config.width != config.height;
         bool[] rotationOptions;
         
         if (!canRotate)
         {
-            // Gem vuông, không thể xoay
+            // Square gem, cannot rotate
             rotationOptions = new bool[] { false };
         }
         else if (orientation == GemOrientation.Horizontal)
         {
-            // Nằm ngang: width > height sau khi xoay
-            // Nếu width gốc > height gốc thì không xoay, ngược lại thì xoay
+            // Horizontal: width > height after rotation
+            // If original width > original height then don't rotate, otherwise rotate
             rotationOptions = new bool[] { config.width > config.height ? false : true };
         }
         else // Vertical
         {
-            // Nằm dọc: height > width sau khi xoay
-            // Nếu height gốc > width gốc thì không xoay, ngược lại thì xoay
+            // Vertical: height > width after rotation
+            // If original height > original width then don't rotate, otherwise rotate
             rotationOptions = new bool[] { config.height > config.width ? false : true };
         }
         
@@ -466,7 +466,7 @@ public class BoardManager : MonoBehaviour
             int actualWidth = isRotated ? config.height : config.width;
             int actualHeight = isRotated ? config.width : config.height;
             
-            // Kiểm tra tất cả vị trí có thể
+            // Check all possible positions
             for (int x = 0; x <= boardWidth - actualWidth; x++)
             {
                 for (int y = 0; y <= boardHeight - actualHeight; y++)
@@ -486,7 +486,7 @@ public class BoardManager : MonoBehaviour
             }
         }
         
-        // Nếu có vị trí hợp lệ, chọn ngẫu nhiên một vị trí
+        // If there are valid positions, randomly choose one
         if (validPlacements.Count > 0)
         {
             PlacementOption chosen = validPlacements[Random.Range(0, validPlacements.Count)];
@@ -500,14 +500,14 @@ public class BoardManager : MonoBehaviour
     
     private bool PlaceGemWithAllPositions(Gem gem, GemConfigData gemConfigData, GemOrientation orientation = GemOrientation.Horizontal)
     {
-        // Fallback: thử lại với nhiều lần hơn và cách tiếp cận khác
+        // Fallback: try again with more attempts and different approach
         var config = gemConfigData.GetGemConfig(gem.GemId);
         if (config == null) return false;
         
-        // Tạo danh sách tất cả vị trí có thể theo thứ tự ngẫu nhiên
+        // Create list of all possible positions in random order
         List<PlacementOption> allOptions = new List<PlacementOption>();
         
-        // Xác định các hướng xoay dựa trên orientation được quy định
+        // Determine rotation directions based on specified orientation
         bool canRotate = config.width != config.height;
         bool[] rotationOptions;
         
@@ -548,7 +548,7 @@ public class BoardManager : MonoBehaviour
             }
         }
         
-        // Xáo trộn danh sách
+        // Shuffle list
         for (int i = 0; i < allOptions.Count; i++)
         {
             PlacementOption temp = allOptions[i];
@@ -557,7 +557,7 @@ public class BoardManager : MonoBehaviour
             allOptions[randomIndex] = temp;
         }
         
-        // Thử từng vị trí
+        // Try each position
         foreach (var option in allOptions)
         {
             if (CanPlaceGem(option.x, option.y, option.actualWidth, option.actualHeight))
@@ -587,11 +587,11 @@ public class BoardManager : MonoBehaviour
             for (int j = 0; j < height; j++)
             {
                 CellUI cell = board[x + i, y + j];
-                // Không thể đặt gem nếu:
-                // - Cell đã có gem
-                // - Cell đã bị exclude khỏi gem spawn
-                // - Cell đã được reveal (đã đào trước đó)
-                // - Cell có dynamite (thuốc nổ)
+                // Cannot place gem if:
+                // - Cell already has gem
+                // - Cell is excluded from gem spawn
+                // - Cell is revealed (dug before)
+                // - Cell has dynamite
                 if (cell.Gem != null || cell.IsExcludedFromGemSpawn || cell.IsRevealed || cell.IsDynamite)
                     return false;
             }
@@ -610,19 +610,19 @@ public class BoardManager : MonoBehaviour
                 CellUI cell = board[x + i, y + j];
                 gem.AddCellUI(cell);
                 
-                // Tính toán vị trí của cell trong gem sprite gốc
-                // Nếu gem bị xoay, cần map lại vị trí
-                // Khi xoay: (i, j) trong board -> (j, i) trong sprite gốc
-                // Ví dụ: gem 1x3 xoay thành 3x1
-                //   - Cell (0,0) trong board -> (0, 0) trong sprite gốc
-                //   - Cell (1,0) trong board -> (0, 1) trong sprite gốc
-                //   - Cell (2,0) trong board -> (0, 2) trong sprite gốc
+                // Calculate position of cell in original gem sprite
+                // If gem is rotated, need to remap position
+                // When rotated: (i, j) in board -> (j, i) in original sprite
+                // Example: gem 1x3 rotated to 3x1
+                //   - Cell (0,0) in board -> (0, 0) in original sprite
+                //   - Cell (1,0) in board -> (0, 1) in original sprite
+                //   - Cell (2,0) in board -> (0, 2) in original sprite
                 int gemCellX, gemCellY;
                 if (isRotated)
                 {
-                    // Gem bị xoay: swap i và j
-                    gemCellX = j; // j trong board -> X trong sprite gốc
-                    gemCellY = i; // i trong board -> Y trong sprite gốc
+                    // Gem is rotated: swap i and j
+                    gemCellX = j; // j in board -> X in original sprite
+                    gemCellY = i; // i in board -> Y in original sprite
                 }
                 else
                 {
@@ -630,11 +630,11 @@ public class BoardManager : MonoBehaviour
                     gemCellY = j;
                 }
                 
-                // Set gem info cho cell với actualWidth và actualHeight (đã xoay)
-                // Nhưng cần truyền width và height gốc để sprite hiển thị đúng
+                // Set gem info for cell with actualWidth and actualHeight (rotated)
+                // But need to pass original width and height for sprite to display correctly
                 cell.SetGemInfo(gem, gemCellX, gemCellY, config.width, config.height, actualWidth, actualHeight, isRotated);
                 
-                // Không thay đổi stone layers của cell khi spawn gem - giữ nguyên stone layers ban đầu
+                // Don't change stone layers of cell when spawning gem - keep original stone layers
             }
         }
     }
@@ -668,7 +668,7 @@ public class BoardManager : MonoBehaviour
     
     public bool DigCell(int x, int y)
     {
-        // Kiểm tra xem có cho phép đào không
+        // Check if digging is allowed
         if (!isInputEnabled)
         {
             return false;
@@ -677,11 +677,11 @@ public class BoardManager : MonoBehaviour
         if (x < 0 || x >= boardWidth || y < 0 || y >= boardHeight)
             return false;
         
-        // Kiểm tra cooldown giữa các lần đào
+        // Check cooldown between digs
         float currentTime = Time.time;
         if (currentTime - lastDigTime < digCooldown)
         {
-            return false; // Chưa đủ thời gian, không cho đào
+            return false; // Not enough time, don't allow digging
         }
             
         CellUI cell = board[x, y];
@@ -696,7 +696,7 @@ public class BoardManager : MonoBehaviour
             return false;
         }
         
-        // Cập nhật thời gian đào cuối cùng
+        // Update last dig time
         lastDigTime = currentTime;
         
         PickaxeManager.Instance.UsePickaxe(pickaxesNeeded);
@@ -708,7 +708,7 @@ public class BoardManager : MonoBehaviour
             ExplodeDynamite(x, y);
         }
         
-        // Xử lý gem reveal với tỉ lệ 30%
+        // Process gem reveal with 30% chance
         ProcessGemReveal(cell);
         
         return true;
@@ -716,13 +716,13 @@ public class BoardManager : MonoBehaviour
     
     private void ProcessGemReveal(CellUI cell)
     {
-        // Nếu cell đã có gem (đã được spawn trước đó), chỉ cần check reveal
+        // If cell already has gem (spawned before), just check reveal
         if (cell.Gem != null && !cell.Gem.IsCollected)
         {
             // Gem hit - check if fully revealed
             if (cell.Gem.IsFullyRevealed() && !cell.Gem.IsCollected)
             {
-                // Phát sound khi collect full gem
+                // Play sound when collecting full gem
                 if (AudioManager.Instance != null)
                 {
                     AudioManager.Instance.PlayGemCollectSound();
@@ -734,7 +734,7 @@ public class BoardManager : MonoBehaviour
             }
             else
             {
-                // Phát sound khi tìm thấy một phần của gem (chưa fully revealed)
+                // Play sound when finding part of gem (not fully revealed yet)
                 if (AudioManager.Instance != null)
                 {
                     AudioManager.Instance.PlayGemFoundSound();
@@ -743,19 +743,19 @@ public class BoardManager : MonoBehaviour
             return;
         }
         
-        // Nếu cell chưa có gem, thử spawn gem mới từ pool
+        // If cell doesn't have gem yet, try spawning new gem from pool
         // Check gem hit ratio (30% chance)
         bool hitGem = Random.Range(0f, 1f) < 0.3f;
         
-        // Nếu hitGem = false, phải kiểm tra xem các gem còn lại có thể được đặt trên board không
-        // Nếu không thể đặt được, phải force hitGem = true
+        // If hitGem = false, must check if remaining gems can be placed on board
+        // If cannot be placed, must force hitGem = true
         if (!hitGem && unplacedGems.Count > 0)
         {
-            // Kiểm tra xem các gem còn lại có thể được đặt trên board không
-            // (giả định cell này không có gem - tức là không spawn gem ở đây)
+            // Check if remaining gems can be placed on board
+            // (assume this cell has no gem - i.e., don't spawn gem here)
             if (!CanPlaceRemainingGemsIgnoringCell(cell))
             {
-                // Nếu không thể đặt đủ các gem còn lại, phải force hit để spawn gem ở cell này
+                // If cannot place all remaining gems, must force hit to spawn gem at this cell
                 hitGem = true;
                 Debug.Log($"Force hit: Cannot place remaining {unplacedGems.Count} gems without using this cell");
             }
@@ -765,30 +765,30 @@ public class BoardManager : MonoBehaviour
         
         if (hitGem && unplacedGems.Count > 0)
         {
-            // Kiểm tra xem các gem còn lại có thể đặt được không nếu không spawn gem ở cell này
+            // Check if remaining gems can be placed if not spawning gem at this cell
             bool canPlaceRemainingWithoutThisCell = CanPlaceRemainingGemsIgnoringCell(cell);
             
-            // Spawn một gem ngẫu nhiên từ pool, PHẢI đặt chính xác ở cell vừa đào
+            // Spawn a random gem from pool, MUST place exactly at the cell just dug
             bool spawnSuccess = SpawnGemAtExactCell(cell);
             
-            // Phát sound khi spawn gem thành công (tìm thấy một phần của gem)
+            // Play sound when spawn gem succeeds (found part of gem)
             if (spawnSuccess && AudioManager.Instance != null)
             {
                 AudioManager.Instance.PlayGemFoundSound();
             }
             
-            // Nếu spawn fail, phải force spawn nếu:
-            // 1. Các gem còn lại không thể đặt được nếu không spawn gem ở cell này, HOẶC
-            // 2. Đây là force hit (đã được force từ false thành true)
+            // If spawn fails, must force spawn if:
+            // 1. Remaining gems cannot be placed if not spawning gem at this cell, OR
+            // 2. This is a force hit (forced from false to true)
             if (!spawnSuccess && unplacedGems.Count > 0)
             {
                 if (!canPlaceRemainingWithoutThisCell)
                 {
-                    // Phải force spawn gem ở cell này (bỏ qua điều kiện các gem còn lại có thể đặt)
+                    // Must force spawn gem at this cell (ignore condition that remaining gems can be placed)
                     Debug.LogWarning("Spawn failed but remaining gems cannot be placed - forcing spawn at this cell");
                     ForceSpawnGemAtCellIgnoringRemainingGems(cell);
                     
-                    // Phát sound khi force spawn (tìm thấy một phần của gem)
+                    // Play sound when force spawn (found part of gem)
                     if (cell.Gem != null && AudioManager.Instance != null)
                     {
                         AudioManager.Instance.PlayGemFoundSound();
@@ -798,7 +798,7 @@ public class BoardManager : MonoBehaviour
                 {
                     Debug.LogWarning($"Spawn failed at cell ({cell.BoardX}, {cell.BoardY}) but remaining gems can be placed");
                     
-                    // Phát sound đào hụt khi spawn failed nhưng remaining gems can be placed
+                    // Play digging missed sound when spawn failed but remaining gems can be placed
                     if (AudioManager.Instance != null)
                     {
                         AudioManager.Instance.PlayDiggingSound();
@@ -808,29 +808,29 @@ public class BoardManager : MonoBehaviour
         }
         else if (!hitGem)
         {
-            // Phát sound khi đào không trúng gì
+            // Play sound when digging misses
             if (AudioManager.Instance != null)
             {
                 AudioManager.Instance.PlayDiggingSound();
             }
             
-            // Chỉ đánh dấu cell này là excluded khi đã chắc chắn các gem còn lại có thể đặt được
-            // (Logic này đã được kiểm tra ở trên, nếu không thể đặt thì hitGem đã được force = true)
+            // Only mark this cell as excluded when certain that remaining gems can be placed
+            // (This logic has been checked above, if cannot place then hitGem has been forced = true)
             cell.MarkAsExcludedFromGemSpawn();
         }
     }
     
-    // Force spawn gem ở cell mà không kiểm tra điều kiện các gem còn lại có thể đặt không
-    // Nhưng vẫn sử dụng backtracking để đảm bảo các gem còn lại có thể đặt được
+    // Force spawn gem at cell without checking condition that remaining gems can be placed
+    // But still use backtracking to ensure remaining gems can be placed
     private void ForceSpawnGemAtCellIgnoringRemainingGems(CellUI cell)
     {
         if (unplacedGems == null || unplacedGems.Count == 0 || gemConfigData == null)
             return;
         
-        // Reset exclude flag của cell này để có thể spawn gem
+        // Reset exclude flag of this cell to allow gem spawn
         cell.ResetExcludedFromGemSpawn();
         
-        // Xáo trộn danh sách gems để có tính ngẫu nhiên
+        // Shuffle gem list for randomness
         List<Gem> shuffledGems = new List<Gem>(unplacedGems);
         for (int i = 0; i < shuffledGems.Count; i++)
         {
@@ -840,10 +840,10 @@ public class BoardManager : MonoBehaviour
             shuffledGems[randomIndex] = temp;
         }
         
-        // Thử spawn từng gem ngẫu nhiên
+        // Try spawning each gem randomly
         foreach (Gem gemToSpawn in shuffledGems)
         {
-            // Lấy orientation của gem này
+            // Get orientation of this gem
             GemOrientation orientation = GemOrientation.Horizontal;
             if (gemOrientations != null && gemOrientations.ContainsKey(gemToSpawn))
             {
@@ -853,10 +853,10 @@ public class BoardManager : MonoBehaviour
             var config = gemConfigData.GetGemConfig(gemToSpawn.GemId);
             if (config == null) continue;
             
-            // Ưu tiên: Tìm tất cả vị trí có thể đặt gem này mà chứa chính xác cell này
+            // Priority: Find all positions that can place this gem containing exactly this cell
             List<PlacementOption> placementsAtCell = GetPlacementsContainingCell(gemToSpawn, gemConfigData, orientation, cell);
             
-            // Xáo trộn placements để có tính ngẫu nhiên
+            // Shuffle placements for randomness
             for (int i = 0; i < placementsAtCell.Count; i++)
             {
                 int randomIndex = Random.Range(i, placementsAtCell.Count);
@@ -865,13 +865,13 @@ public class BoardManager : MonoBehaviour
                 placementsAtCell[randomIndex] = temp;
             }
             
-            // Thử từng placement chứa cell này
+            // Try each placement containing this cell
             foreach (var placement in placementsAtCell)
             {
-                // Kiểm tra xem sau khi đặt gem này, các gem còn lại có thể được đặt không (sử dụng backtracking)
+                // Check if after placing this gem, remaining gems can be placed (using backtracking)
                 if (CanPlaceRemainingGemsAfterPlacing(gemToSpawn, placement))
                 {
-                    // Reset exclude flag của tất cả cells trong placement
+                    // Reset exclude flag of all cells in placement
                     for (int x = 0; x < placement.actualWidth; x++)
                     {
                         for (int y = 0; y < placement.actualHeight; y++)
@@ -880,24 +880,24 @@ public class BoardManager : MonoBehaviour
                         }
                     }
                     
-                    // Đặt gem tại vị trí này
+                    // Place gem at this position
                     PlaceGemAt(gemToSpawn, placement.x, placement.y, config, placement.actualWidth, placement.actualHeight, placement.isRotated);
                     
-                    // Xóa khỏi pool và thêm vào hiddenGems
+                    // Remove from pool and add to hiddenGems
                     unplacedGems.Remove(gemToSpawn);
                     hiddenGems.Add(gemToSpawn);
                     
                     Debug.Log($"Force spawned gem {gemToSpawn.GemId} at cell ({cell.BoardX}, {cell.BoardY}) using backtracking");
-                    return; // Thành công
+                    return; // Success
                 }
             }
         }
         
-        // Nếu không tìm được gem nào có thể đặt ở cell này mà vẫn đảm bảo các gem còn lại có thể đặt,
-        // thử đặt gem ở bất kỳ vị trí nào có thể (fallback)
+        // If cannot find any gem that can be placed at this cell while ensuring remaining gems can be placed,
+        // try placing gem at any valid position (fallback)
         Debug.LogWarning($"Cannot spawn any gem at cell ({cell.BoardX}, {cell.BoardY}) - trying fallback to any valid position");
         
-        // Sắp xếp gems theo kích thước (lớn trước) để backtracking hiệu quả hơn
+        // Sort gems by size (largest first) for more efficient backtracking
         List<Gem> sortedGems = new List<Gem>(shuffledGems);
         sortedGems.Sort((a, b) =>
         {
@@ -913,12 +913,12 @@ public class BoardManager : MonoBehaviour
             int areaA = GetGemArea(cfgA, oriA);
             int areaB = GetGemArea(cfgB, oriB);
             
-            return areaB.CompareTo(areaA); // Lớn trước
+            return areaB.CompareTo(areaA); // Largest first
         });
         
         foreach (Gem gemToSpawn in sortedGems)
         {
-            // Lấy orientation của gem này
+            // Get orientation of this gem
             GemOrientation orientation = GemOrientation.Horizontal;
             if (gemOrientations != null && gemOrientations.ContainsKey(gemToSpawn))
             {
@@ -928,10 +928,10 @@ public class BoardManager : MonoBehaviour
             var config = gemConfigData.GetGemConfig(gemToSpawn.GemId);
             if (config == null) continue;
             
-            // Tìm tất cả vị trí có thể đặt gem này (bỏ qua exclude flag)
+            // Find all positions that can place this gem (ignore exclude flag)
             List<PlacementOption> allPlacements = GetAllValidPlacementsIgnoringExclude(gemToSpawn, gemConfigData, orientation);
             
-            // Xáo trộn placements để có tính ngẫu nhiên
+            // Shuffle placements for randomness
             for (int i = 0; i < allPlacements.Count; i++)
             {
                 int randomIndex = Random.Range(i, allPlacements.Count);
@@ -940,13 +940,13 @@ public class BoardManager : MonoBehaviour
                 allPlacements[randomIndex] = temp;
             }
             
-            // Thử từng placement và kiểm tra bằng backtracking
+            // Try each placement and check with backtracking
             foreach (var placement in allPlacements)
             {
-                // Kiểm tra xem sau khi đặt gem này, các gem còn lại có thể được đặt không
+                // Check if after placing this gem, remaining gems can be placed
                 if (CanPlaceRemainingGemsAfterPlacing(gemToSpawn, placement))
                 {
-                    // Reset exclude flag của tất cả cells trong placement
+                    // Reset exclude flag of all cells in placement
                     for (int x = 0; x < placement.actualWidth; x++)
                     {
                         for (int y = 0; y < placement.actualHeight; y++)
@@ -955,21 +955,21 @@ public class BoardManager : MonoBehaviour
                         }
                     }
                     
-                    // Đặt gem tại vị trí này
+                    // Place gem at this position
                     PlaceGemAt(gemToSpawn, placement.x, placement.y, config, placement.actualWidth, placement.actualHeight, placement.isRotated);
                     
-                    // Xóa khỏi pool và thêm vào hiddenGems
+                    // Remove from pool and add to hiddenGems
                     unplacedGems.Remove(gemToSpawn);
                     hiddenGems.Add(gemToSpawn);
                     
                     Debug.Log($"Force spawned gem {gemToSpawn.GemId} at position ({placement.x}, {placement.y}) - fallback from cell ({cell.BoardX}, {cell.BoardY})");
-                    return; // Thành công
+                    return; // Success
                 }
             }
         }
         
-        // Fallback cuối cùng: nếu backtracking không tìm được giải pháp, vẫn spawn gem đầu tiên có thể
-        // để tránh deadlock (trường hợp cực kỳ hiếm khi board thực sự không thể đặt được)
+        // Final fallback: if backtracking finds no solution, still spawn first possible gem
+        // to avoid deadlock (extremely rare case when board truly cannot be placed)
         Debug.LogError($"Backtracking found no solution for cell ({cell.BoardX}, {cell.BoardY}) - using emergency fallback");
         
         foreach (Gem gemToSpawn in shuffledGems)
@@ -988,7 +988,7 @@ public class BoardManager : MonoBehaviour
             {
                 var emergencyPlacement = allPlacements[Random.Range(0, allPlacements.Count)];
                 
-                // Reset exclude flag của tất cả cells trong placement
+                // Reset exclude flag of all cells in placement
                 for (int x = 0; x < emergencyPlacement.actualWidth; x++)
                 {
                     for (int y = 0; y < emergencyPlacement.actualHeight; y++)
@@ -997,10 +997,10 @@ public class BoardManager : MonoBehaviour
                     }
                 }
                 
-                // Đặt gem tại vị trí này
+                // Place gem at this position
                 PlaceGemAt(gemToSpawn, emergencyPlacement.x, emergencyPlacement.y, config, emergencyPlacement.actualWidth, emergencyPlacement.actualHeight, emergencyPlacement.isRotated);
                 
-                // Xóa khỏi pool và thêm vào hiddenGems
+                // Remove from pool and add to hiddenGems
                 unplacedGems.Remove(gemToSpawn);
                 hiddenGems.Add(gemToSpawn);
                 
@@ -1017,15 +1017,15 @@ public class BoardManager : MonoBehaviour
         if (unplacedGems == null || unplacedGems.Count == 0 || gemConfigData == null)
             return;
         
-        // Reset exclude flag của cell này để có thể spawn gem
+        // Reset exclude flag of this cell to allow gem spawn
         cell.ResetExcludedFromGemSpawn();
         
-        // Thử spawn từng gem trong pool để tìm gem có thể đặt ở cell này
+        // Try spawning each gem in pool to find gem that can be placed at this cell
         for (int i = 0; i < unplacedGems.Count; i++)
         {
             Gem gemToSpawn = unplacedGems[i];
             
-            // Lấy orientation của gem này
+            // Get orientation of this gem
             GemOrientation orientation = GemOrientation.Horizontal;
             if (gemOrientations != null && gemOrientations.ContainsKey(gemToSpawn))
             {
@@ -1035,12 +1035,12 @@ public class BoardManager : MonoBehaviour
             var config = gemConfigData.GetGemConfig(gemToSpawn.GemId);
             if (config == null) continue;
             
-            // Tìm tất cả vị trí có thể đặt gem này mà chứa cell (bỏ qua exclude flag)
+            // Find all positions that can place this gem containing cell (ignore exclude flag)
             List<PlacementOption> allPlacements = GetAllValidPlacementsIgnoringExclude(gemToSpawn, gemConfigData, orientation);
             
             foreach (var placement in allPlacements)
             {
-                // Kiểm tra xem placement này có chứa cell không
+                // Check if this placement contains cell
                 bool containsCell = false;
                 for (int x = 0; x < placement.actualWidth; x++)
                 {
@@ -1057,7 +1057,7 @@ public class BoardManager : MonoBehaviour
                 
                 if (containsCell)
                 {
-                    // Kiểm tra lại xem có thể đặt gem không (chỉ kiểm tra gem và revealed, không kiểm tra exclude flag)
+                    // Check again if gem can be placed (only check gem and revealed, don't check exclude flag)
                     bool canPlace = true;
                     for (int x = 0; x < placement.actualWidth; x++)
                     {
@@ -1075,10 +1075,10 @@ public class BoardManager : MonoBehaviour
                     
                     if (canPlace)
                     {
-                        // Kiểm tra xem sau khi đặt gem này, các gem còn lại có thể được đặt không
+                        // Check if after placing this gem, remaining gems can be placed
                         if (CanPlaceRemainingGemsAfterPlacing(gemToSpawn, placement))
                         {
-                            // Reset exclude flag của tất cả cells trong placement
+                            // Reset exclude flag of all cells in placement
                             for (int x = 0; x < placement.actualWidth; x++)
         {
                                 for (int y = 0; y < placement.actualHeight; y++)
@@ -1087,15 +1087,15 @@ public class BoardManager : MonoBehaviour
                                 }
                             }
                             
-                            // Đặt gem tại vị trí này
+                            // Place gem at this position
                             PlaceGemAt(gemToSpawn, placement.x, placement.y, config, placement.actualWidth, placement.actualHeight, placement.isRotated);
                             
-                            // Xóa khỏi pool và thêm vào hiddenGems
+                            // Remove from pool and add to hiddenGems
                             unplacedGems.RemoveAt(i);
                             hiddenGems.Add(gemToSpawn);
                             
                             Debug.Log($"Force spawned gem {gemToSpawn.GemId} at cell ({cell.BoardX}, {cell.BoardY})");
-                            return; // Thành công
+                            return; // Success
                         }
                     }
                 }
@@ -1105,14 +1105,14 @@ public class BoardManager : MonoBehaviour
         Debug.LogError($"Failed to force spawn gem at cell ({cell.BoardX}, {cell.BoardY})");
     }
     
-    // Lấy tất cả vị trí có thể đặt gem mà bỏ qua exclude flag
+    // Get all positions that can place gem ignoring exclude flag
     private List<PlacementOption> GetAllValidPlacementsIgnoringExclude(Gem gem, GemConfigData gemConfigData, GemOrientation orientation)
     {
         List<PlacementOption> validPlacements = new List<PlacementOption>();
         var config = gemConfigData.GetGemConfig(gem.GemId);
         if (config == null) return validPlacements;
         
-        // Xác định các hướng xoay dựa trên orientation được quy định
+        // Determine rotation directions based on specified orientation
         bool canRotate = config.width != config.height;
         bool[] rotationOptions;
         
@@ -1138,7 +1138,7 @@ public class BoardManager : MonoBehaviour
             {
                 for (int y = 0; y <= boardHeight - actualHeight; y++)
                 {
-                    // Kiểm tra có thể đặt gem không (chỉ kiểm tra gem, revealed và dynamite, không kiểm tra exclude flag)
+                    // Check if gem can be placed (only check gem, revealed and dynamite, don't check exclude flag)
                     bool canPlace = true;
                     for (int i = 0; i < actualWidth; i++)
                     {
@@ -1172,17 +1172,17 @@ public class BoardManager : MonoBehaviour
         return validPlacements;
     }
     
-    // Spawn gem chính xác ở cell được chỉ định (cell đó phải là một phần của gem)
-    // Chọn ngẫu nhiên 1 gem, đặt vào, kiểm tra các gem còn lại có thể đặt không, nếu không chọn gem khác
+    // Spawn gem exactly at specified cell (cell must be part of gem)
+    // Randomly choose 1 gem, place it, check if remaining gems can be placed, if not choose another gem
     private bool SpawnGemAtExactCell(CellUI cell)
     {
         if (unplacedGems == null || unplacedGems.Count == 0 || gemConfigData == null)
             return false;
         
-        // Reset exclude flag của cell này để có thể spawn gem
+        // Reset exclude flag of this cell to allow gem spawn
         cell.ResetExcludedFromGemSpawn();
         
-        // Xáo trộn danh sách gems để có tính ngẫu nhiên
+        // Shuffle gem list for randomness
         List<Gem> shuffledGems = new List<Gem>(unplacedGems);
         for (int i = 0; i < shuffledGems.Count; i++)
         {
@@ -1192,10 +1192,10 @@ public class BoardManager : MonoBehaviour
             shuffledGems[randomIndex] = temp;
         }
         
-        // Thử từng gem ngẫu nhiên
+        // Try each gem randomly
         foreach (Gem gemToSpawn in shuffledGems)
         {
-            // Lấy orientation của gem này
+            // Get orientation of this gem
             GemOrientation orientation = GemOrientation.Horizontal;
             if (gemOrientations != null && gemOrientations.ContainsKey(gemToSpawn))
             {
@@ -1792,7 +1792,7 @@ public class BoardManager : MonoBehaviour
         // Spawn explosion particle effect
         SpawnExplosionEffect(x, y);
         
-        // Đào và reveal các cell trong vùng nổ 3x3 với tỉ lệ 30% hiện gem
+        // Dig and reveal cells in 3x3 explosion area with 30% gem reveal chance
         for (int i = -1; i <= 1; i++)
         {
             for (int j = -1; j <= 1; j++)
@@ -1804,13 +1804,13 @@ public class BoardManager : MonoBehaviour
                 {
                     CellUI cell = board[newX, newY];
                     
-                    // Chỉ xử lý nếu cell chưa được reveal
+                    // Only process if cell is not revealed yet
                     if (!cell.IsRevealed)
                     {
-                        // Đào cell (remove stone layers và reveal)
+                        // Dig cell (remove stone layers and reveal)
                         cell.Dig();
                         
-                        // Xử lý gem reveal với tỉ lệ 30% giống như khi đào bằng pickaxe
+                        // Process gem reveal with 30% chance same as when digging with pickaxe
                         ProcessGemReveal(cell);
                     }
                 }
@@ -1818,7 +1818,7 @@ public class BoardManager : MonoBehaviour
         }
     }
     
-    // Spawn explosion particle effect tại vị trí dynamite
+    // Spawn explosion particle effect at dynamite position
     private void SpawnExplosionEffect(int x, int y)
     {
         if (explosionParticlePrefab == null || boardParentUI == null)
@@ -1827,7 +1827,7 @@ public class BoardManager : MonoBehaviour
             return;
         }
         
-        // Tính toán vị trí của cell trong Canvas
+        // Calculate position of cell in Canvas
         CellUI cell = board[x, y];
         if (cell == null)
         {
@@ -1842,38 +1842,38 @@ public class BoardManager : MonoBehaviour
             return;
         }
         
-        // Tạo particle system instance (KHÔNG đặt trong Canvas, đặt trong scene root)
+        // Create particle system instance (DO NOT place in Canvas, place in scene root)
         ParticleSystem explosion = Instantiate(explosionParticlePrefab);
         
-        // Với Screen Space Overlay Canvas, Particle System cần được đặt trong World Space
-        // Convert UI position sang world position
+        // With Screen Space Overlay Canvas, Particle System needs to be placed in World Space
+        // Convert UI position to world position
         Canvas canvas = boardParentUI.GetComponentInParent<Canvas>();
         Vector3 worldPosition = Vector3.zero;
         
-        // Lấy camera chính (dùng chung cho cả function)
+        // Get main camera (used for entire function)
         Camera mainCamera = Camera.main ?? FindObjectOfType<Camera>();
         
         if (canvas != null)
         {
             if (canvas.renderMode == RenderMode.ScreenSpaceOverlay)
             {
-                // Screen Space Overlay: convert screen position sang world position
+                // Screen Space Overlay: convert screen position to world position
                 if (mainCamera != null)
                 {
-                    // Convert UI world position sang screen point, rồi sang world position ở một distance nhất định
+                    // Convert UI world position to screen point, then to world position at a certain distance
                     Vector3 screenPoint = RectTransformUtility.WorldToScreenPoint(null, cellRect.position);
-                    // Đặt particle ở một khoảng cách trước camera (ví dụ: 10 units)
+                    // Place particle at a distance before camera (e.g., 10 units)
                     worldPosition = mainCamera.ScreenToWorldPoint(new Vector3(screenPoint.x, screenPoint.y, mainCamera.nearClipPlane + 5f));
                 }
                 else
                 {
-                    // Fallback: dùng position trực tiếp
+                    // Fallback: use position directly
                     worldPosition = cellRect.position;
                 }
             }
             else if (canvas.renderMode == RenderMode.ScreenSpaceCamera)
             {
-                // Screen Space Camera: convert sang world position của camera
+                // Screen Space Camera: convert to world position of camera
                 if (canvas.worldCamera != null)
                 {
                     RectTransformUtility.ScreenPointToWorldPointInRectangle(
