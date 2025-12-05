@@ -1,6 +1,7 @@
 using UnityEngine;
 using UnityEngine.UI;
 using TMPro;
+using DG.Tweening;
 
 public class StagePanel : MonoBehaviour
 {
@@ -209,6 +210,21 @@ public class StagePanel : MonoBehaviour
         {
             chestButtons[buttonIndex].interactable = true;
             Debug.Log($"Unlocked reward button for Stage {completedStageId}");
+            
+            // Animation zoom lui tới lặp lại 2 lần trong 3s
+            RectTransform buttonRect = chestButtons[buttonIndex].GetComponent<RectTransform>();
+            if (buttonRect != null)
+            {
+                Vector3 originalScale = buttonRect.localScale;
+                Vector3 targetScale = originalScale * 1.4f; // Zoom to 120%
+                
+                // Tạo animation zoom lui tới lặp lại 2 lần trong 3s (mỗi chu kỳ 1.5s)
+                Sequence zoomSequence = DOTween.Sequence();
+                zoomSequence.Append(buttonRect.DOScale(targetScale, 0.75f).SetEase(Ease.OutBack));
+                zoomSequence.Append(buttonRect.DOScale(originalScale, 0.75f).SetEase(Ease.InBack));
+                zoomSequence.SetLoops(2, LoopType.Restart); // Lặp lại 2 lần
+                zoomSequence.SetAutoKill(true);
+            }
         }
     }
     
@@ -218,34 +234,6 @@ public class StagePanel : MonoBehaviour
         if (stageText != null)
         {
             stageText.text = $"Gate {GetRomanNumeral(stageId)}";
-        }
-        
-        // Highlight current stage button
-        UpdateStageHighlight(stageId);
-    }
-    
-    public void UpdateStageHighlight(int stageId)
-    {
-        // Highlight current stage button
-        if (chestButtons == null) return;
-        
-        for (int i = 0; i < chestButtons.Length; i++)
-        {
-            if (chestButtons[i] == null) continue;
-            
-            if (i == stageId - 1)
-            {
-                // Highlight button
-                var colors = chestButtons[i].colors;
-                colors.normalColor = Color.yellow;
-                chestButtons[i].colors = colors;
-            }
-            else
-            {
-                var colors = chestButtons[i].colors;
-                colors.normalColor = Color.white;
-                chestButtons[i].colors = colors;
-            }
         }
     }
     

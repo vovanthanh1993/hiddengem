@@ -76,7 +76,24 @@ public class AudioManager : MonoBehaviour
         // Load từ mảng sounds vào dictionary (dùng cho cả Manual và FromFolder)
         LoadSoundsFromArray();
         
+        // Load settings từ PlayerPrefs và áp dụng
+        LoadAudioSettings();
+        
         Debug.Log($"AudioManager: Đã load {soundDictionary.Count} audio clips.");
+    }
+    
+    /// <summary>
+    /// Load audio settings từ PlayerPrefs và áp dụng
+    /// </summary>
+    private void LoadAudioSettings()
+    {
+        // Load SFX setting (mặc định là bật = 1)
+        bool sfxEnabled = PlayerPrefs.GetInt("SFXEnabled", 1) == 1;
+        SetSFXVolume(sfxEnabled ? 1f : 0f);
+        
+        // Load Music setting (mặc định là bật = 1)
+        bool musicEnabled = PlayerPrefs.GetInt("MusicEnabled", 1) == 1;
+        SetMusicVolume(musicEnabled ? 1f : 0f);
     }
     
     /// <summary>
@@ -170,9 +187,8 @@ public class AudioManager : MonoBehaviour
         {
             if (sfxSource != null)
             {
-                // Lấy volume từ PlayerPrefs và nhân với volume được truyền vào
-                float savedSFXVolume = PlayerPrefs.GetFloat("SFXVolume", 1f);
-                float finalVolume = volume * savedSFXVolume;
+                // Sử dụng volume từ AudioSource (đã được set từ settings) và nhân với volume được truyền vào
+                float finalVolume = volume * sfxSource.volume;
                 
                 sfxSource.PlayOneShot(soundDictionary[soundName], finalVolume);
             }
@@ -201,9 +217,8 @@ public class AudioManager : MonoBehaviour
         {
             if (musicSource != null)
             {
-                // Lấy volume từ PlayerPrefs và nhân với volume được truyền vào
-                float savedMusicVolume = PlayerPrefs.GetFloat("MusicVolume", 1f);
-                float finalVolume = volume * savedMusicVolume;
+                // Sử dụng volume từ AudioSource (đã được set từ settings) và nhân với volume được truyền vào
+                float finalVolume = volume * musicSource.volume;
                 
                 musicSource.clip = soundDictionary[musicName];
                 musicSource.volume = finalVolume;

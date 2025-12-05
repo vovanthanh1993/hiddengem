@@ -10,6 +10,8 @@ public class StageManager : MonoBehaviour
     [SerializeField] private GemConfigData gemConfigData;
     [SerializeField] private BoardManager boardManager;
     [SerializeField] private GameObject gemPrefab;
+    [SerializeField] private ParticleSystem stageCompleteParticlePrefab; // Particle effect khi hoàn thành stage
+    [SerializeField] private float stageCompleteParticleDuration = 1f; // Thời gian hiển thị particle
     
     public GemConfigData GetGemConfigData() => gemConfigData;
     
@@ -191,6 +193,9 @@ public class StageManager : MonoBehaviour
             AudioManager.Instance.PlayWinSound();
         }
         
+        // Spawn particle effect ở giữa màn hình khi hoàn thành stage (delay 0.2s)
+        StartCoroutine(DelayedSpawnStageCompleteParticle(0.2f));
+        
         // Disable input để không cho đào nữa
         if (boardManager != null)
         {
@@ -252,6 +257,67 @@ public class StageManager : MonoBehaviour
             Debug.Log("All stages completed!");
             // Show completion screen
         }
+    }
+    
+    private System.Collections.IEnumerator DelayedSpawnStageCompleteParticle(float delay)
+    {
+        yield return new WaitForSeconds(delay);
+        SpawnStageCompleteParticle();
+    }
+    
+    private void SpawnStageCompleteParticle()
+    {
+        if (stageCompleteParticlePrefab == null)
+        {
+            Debug.LogWarning("Stage complete particle prefab is null!");
+            return;
+        }
+        
+        // Tạo particle system instance
+        ParticleSystem particle = Instantiate(stageCompleteParticlePrefab);
+        
+        // Đặt particle ở giữa màn hình
+        // Với Canvas Screen Space Overlay, cần tính toán vị trí world space
+        Canvas canvas = FindObjectOfType<Canvas>();
+        if (canvas != null && canvas.renderMode == RenderMode.ScreenSpaceOverlay)
+        {
+            // Lấy kích thước màn hình
+            Vector2 screenSize = new Vector2(Screen.width, Screen.height);
+            Vector2 centerScreen = screenSize * 0.5f;
+            
+            // Convert screen position sang world position
+            // Với Screen Space Overlay, cần đặt particle ở một khoảng cách trước camera
+            Camera mainCamera = Camera.main;
+            if (mainCamera != null)
+            {
+                Vector3 worldPosition = mainCamera.ScreenToWorldPoint(new Vector3(centerScreen.x, centerScreen.y, mainCamera.nearClipPlane + 1f));
+                worldPosition.z = mainCamera.transform.position.z + 1f; // Đặt trước camera một chút
+                particle.transform.position = worldPosition;
+            }
+            else
+            {
+                // Nếu không có camera, đặt ở origin
+                particle.transform.position = Vector3.zero;
+            }
+        }
+        else
+        {
+            // Nếu không có Canvas hoặc Canvas không phải Screen Space Overlay, đặt ở origin
+            particle.transform.position = Vector3.zero;
+        }
+        
+        // Đảm bảo Particle System render đúng
+        var renderer = particle.GetComponent<ParticleSystemRenderer>();
+        if (renderer != null)
+        {
+            renderer.renderMode = ParticleSystemRenderMode.Billboard;
+        }
+        
+        // Play particle system
+        particle.Play();
+        
+        // Destroy particle sau khi hoàn thành
+        Destroy(particle.gameObject, stageCompleteParticleDuration);
     }
     
     private void OnDestroy()

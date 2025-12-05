@@ -11,6 +11,7 @@ public class UIManager : MonoBehaviour
     [SerializeField] private StagePanel stagePanel; // Reference đến StagePanel
     [SerializeField] private AddPickaxePopup addPickaxePopup; // Reference đến AddPickaxePopup
     [SerializeField] private RewardChestPopup rewardChestPopup; // Reference đến RewardChestPopup
+    [SerializeField] private SettingPanel settingPanel; // Reference đến SettingPanel
     
     [Header("Complete Screen")]
     [SerializeField] private TextMeshProUGUI completeText; // Text hiển thị khi hoàn thành tất cả stage
@@ -104,6 +105,22 @@ public class UIManager : MonoBehaviour
         }
     }
     
+    public void ShowSettingPanel()
+    {
+        if (settingPanel != null)
+        {
+            settingPanel.gameObject.SetActive(true);
+        }
+    }
+    
+    public void HideSettingPanel()
+    {
+        if (settingPanel != null)
+        {
+            settingPanel.gameObject.SetActive(false);
+        }
+    }
+    
     
     public void ShowCompletionScreen()
     {
@@ -128,7 +145,6 @@ public class UIManager : MonoBehaviour
         {
             PickaxeManager.Instance.OnPickaxeChanged -= UpdatePickaxeCount;
         }
-        
     }
 }
 

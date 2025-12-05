@@ -684,6 +684,8 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   startButton: {fileID: 2147332432}
+  scaleDuration: 0.5
+  scaleAmount: 0.1
 --- !u!1 &2139487762
 GameObject:
   m_ObjectHideFlags: 0
