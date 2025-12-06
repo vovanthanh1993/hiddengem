@@ -76,15 +76,6 @@ public class GameManager : MonoBehaviour
         return savedStage;
     }
     
-    private void Update()
-    {
-        // Press F1 to clear all saved data
-        if (Input.GetKeyDown(KeyCode.F1))
-        {
-            ClearAllSavedData();
-        }
-    }
-    
     /// <summary>
     /// Clear all saved data in PlayerPrefs and reset game to initial state
     /// </summary>

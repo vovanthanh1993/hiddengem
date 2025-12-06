@@ -16,7 +16,7 @@ MonoBehaviour:
   - stageId: 1
     boardWidth: 4
     boardHeight: 4
-    dynamiteCount: 2
+    dynamiteCount: 0
     gemRequests:
     - gemId: 1
       count: 2
